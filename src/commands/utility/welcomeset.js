@@ -17,26 +17,25 @@ module.exports = {
       const channel = interaction.options.getChannel("channel")
       process.env.WELCOME_CHANNEL_ID = channel.id
       const configPath = path.join(__dirname, "../../config/welcome.js")
-      let configContent = fs.readFileSync(configPath, "utf8")
-      if (configContent.includes("welcomeChannelId:")) {
-        configContent = configContent.replace(/welcomeChannelId:\s*["'](.*)["']/, `welcomeChannelId: "${channel.id}"`)
-      } else {
-        const configObject = configContent.match(/module\.exports\s*=\s*{([^}]*)}/s)
-        if (configObject && configObject[1]) {
-          const updatedConfigObject = configObject[1] + `\n  welcomeChannelId: "${channel.id}",`
-          configContent = configContent.replace(
-            /module\.exports\s*=\s*{([^}]*)}/s,
-            `module.exports = {${updatedConfigObject}}`,
-          )
-        }
+      let welcomeConfig
+      try {
+        delete require.cache[require.resolve("../../config/welcome.js")]
+        welcomeConfig = require("../../config/welcome.js")
+        welcomeConfig.welcomeChannelId = channel.id
+        const configContent = `module.exports = ${JSON.stringify(welcomeConfig, null, 2)}`
+        fs.writeFileSync(configPath, configContent)
+        delete require.cache[require.resolve("../../config/welcome.js")]
+        await interaction.reply({
+          content: `✅ Welcome channel has been successfully set to <#${channel.id}>!`,
+          ephemeral: true,
+        })
+      } catch (error) {
+        console.error("Error updating welcome config:", error)
+        await interaction.reply({
+          content: "❌ An error occurred while setting the welcome channel.",
+          ephemeral: true,
+        })
       }
-      fs.writeFileSync(configPath, configContent)
-      const welcomeConfig = require("../../config/welcome")
-      welcomeConfig.welcomeChannelId = channel.id
-      await interaction.reply({
-        content: `✅ Welcome channel has been successfully set to <#${channel.id}>!`,
-        ephemeral: true,
-      })
     } catch (error) {
       console.error("Error in welcomeset command:", error)
       await interaction.reply({
