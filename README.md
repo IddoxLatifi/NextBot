@@ -63,6 +63,9 @@ Currently in **Beta** 🛠️ — under active development and testing!
   
   - Track and manage invite links for better insight and control.
 
+  ## 🧲 /stealEmoji Module
+
+  - Easily import emojis from other servers to your own.
 
 ## ⚙️ Configuration
 
