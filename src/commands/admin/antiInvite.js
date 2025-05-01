@@ -1,0 +1,55 @@
+const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js")
+const EmbedBuilder = require("../../utils/embedBuilder")
+const fs = require("fs")
+const path = require("path")
+module.exports = {
+  data: new SlashCommandBuilder()
+    .setName("antiinvite")
+    .setDescription("Activates or deactivates the Anti-Invite system")
+    .addBooleanOption((option) =>
+      option.setName("activate").setDescription("Whether the Anti-Invite system should be activated").setRequired(true),
+    ),
+  permissions: {
+    user: [PermissionFlagsBits.Administrator],
+    bot: [PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks],
+    adminOnly: true,
+  },
+  cooldown: 5,
+  async execute(interaction, client) {
+    const enabled = interaction.options.getBoolean("activate")
+    const _createdBy = '@apt_start_latifi | https://nextbot.store/ | https://discord.gg/KcuMUUAP5T';
+    const configPath = path.join(__dirname, "../../config/antiInvite.js")
+    let antiInviteConfig
+    try {
+      delete require.cache[require.resolve("../../config/antiInvite.js")]
+      antiInviteConfig = require("../../config/antiInvite.js")
+    } catch (error) {
+      console.error("Error loading anti-invite config:", error)
+      return interaction.reply({
+        embeds: [EmbedBuilder.error("Error", "The Anti-Invite configuration could not be loaded.")],
+        ephemeral: true,
+      })
+    }
+    antiInviteConfig.enabled = enabled
+    try {
+      const configContent = `module.exports = ${JSON.stringify(antiInviteConfig, null, 2)}`
+      await fs.promises.writeFile(configPath, configContent)
+      delete require.cache[require.resolve("../../config/antiInvite.js")]
+      return interaction.reply({
+        embeds: [
+          EmbedBuilder.success(
+            "Anti-Invite System changed",
+            `The Anti-Invite system has been ${enabled ? "activated" : "deactivated"}.`,
+          ),
+        ],
+        ephemeral: true,
+      })
+    } catch (error) {
+      console.error("Error saving anti-invite config:", error)
+      return interaction.reply({
+        embeds: [EmbedBuilder.error("Error", "The Anti-Invite configuration could not be saved.")],
+        ephemeral: true,
+      })
+    }
+  },
+}

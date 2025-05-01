@@ -1,0 +1,34 @@
+{
+  "name": "next-bot",
+  "version": "1.0.0",
+  "description": "Modular Discord bot with multiple features",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "deploy": "node deploy-commands.js"
+  },
+  "keywords": ["next", "bot", "modular"],
+  "author": "apt_start_latifi",
+  "license": "GPLv3",
+  "dependencies": {
+    "@discordjs/rest": "^1.7.1",
+    "bad-words": "^3.0.4",
+    "chalk": "^4.1.2",
+    "discord-api-types": "^0.37.42",
+    "discord.js": "^14.11.0",
+    "dotenv": "^16.5.0",
+    "linkify-it": "^4.0.1",
+    "moment": "^2.29.4",
+    "ms": "^2.1.3",
+    "node-fetch": "^2.6.11"
+  },
+  "engines": {
+    "node": ">=16.9.0"
+  },
+  "overrides": {
+    "cheerio": "1.0.0-rc.12",
+    "nth-check": "^2.1.1",
+    "jsonpath": "^1.1.1",
+    "underscore": "^1.13.6"
+  }
+}
