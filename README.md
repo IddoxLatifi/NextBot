@@ -83,8 +83,6 @@ footerIconUrl: process.env.EMBED_FOOTER_IMAGE_URL || "",
   <img src="https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExYzl4em96eGtmajJwdGs2dTd2czc5bTFoaGE1Ymk1MDdkanJjNnU3cyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/kdiLau77NE9Z8vxGSO/giphy.gif" width="200" alt="Rocket launch">
 </div>
 
-GER https://www.youtube.com/watch?v=6yVzCuFDz9k&
-
 ## 📥 Clone the Repository
 <pre style="background-color:#f4f4f4;padding:10px;border-radius:5px;overflow-x:auto">
 git clone https://github.com/IddoxLatifi/NextBot.git
@@ -110,6 +108,9 @@ cd NextBot
 2. Start the bot:
    <pre style="background-color:#f4f4f4;padding:10px;border-radius:5px;overflow-x:auto">node index.js</pre>
 
+🎥 Setup Tutorial (YouTube)
+<div align="center"> <a href="https://www.youtube.com/watch?v=6yVzCuFDz9k" target="_blank"> <img src="https://img.youtube.com/vi/6yVzCuFDz9k/0.jpg" alt="NextBot YouTube Tutorial" style="width:80%; border-radius:10px;"> <br /> <strong>Watch the full setup guide on YouTube</strong> </a> </div>
+
 <div align="center">
   <img src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExdWluM24xaDliMWw4azRscGM5Nnk3bzQ2dXNiOXpwaWJ6bWxtZHl4biZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/CjmvTCZf2U3p09Cn0h/giphy.gif" width="150" alt="Celebration">
   <p><strong>Your NextBot is now ready!</strong></p>
@@ -121,10 +122,6 @@ cd NextBot
 - Fully customizable configuration
 - Easy-to-edit modules
 - Works with all major hosting services
-
-
-
-https://github.com/user-attachments/assets/65f51fb7-484c-40a2-8073-cf7360abc2e0
 
 
 
