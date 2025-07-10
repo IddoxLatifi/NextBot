@@ -42,8 +42,6 @@ Currently in **Beta** 🛠️ — under active development and testing!
 - **Better Status Messages:** Clear feedback for all user actions
 
 
-<div align="center">
-  <img src="https://cdn.discordapp.com/attachments/1283833775507374211/1366446046300864716/Unbenannt.PNG?ex=6810f98c&is=680fa80c&hm=29fe9f4e2847377df03a140a4a53982164689d5b7e3979422d8cc039c1e21e20&" alt="NextBot Preview" style="width: 80%; border-radius: 10px;" />
 ---
 
 🛡️ Features
