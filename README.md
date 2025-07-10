@@ -15,6 +15,33 @@
 > **NextBot** is a modular, customizable Discord Bot providing advanced server management and interactive features.
 
 Currently in **Beta** 🛠️ — under active development and testing!
+## v0.1.1 Aviable now! [Download here!](https://github.com/IddoxLatifi/NextBot/releases/tag/v0.1.1)
+## 🔄 Latest Updates & Improvements
+
+### 🎯 **Enhanced Ticket System**
+- **Smart Transcript System:** Automatic transcript generation and DM delivery when tickets are deleted
+- **Robust File Handling:** Prevents data corruption and ensures proper cleanup
+
+### 📊 **New Livestats Module**
+- **Real-time Server Statistics:** Automatic display of server metrics every 3 minutes
+- **Comprehensive Data:** Members, Bots, Boosts, Channels, Roles, Emojis, and more
+- **Fully Configurable:** All fields, colors, emojis, and update intervals customizable
+- **Smart Message Management:** Updates existing embeds instead of spamming new ones
+
+### 🛡️ **Welcome Module Improvements**
+- **Rate Limiting:** Prevents spam welcome messages with configurable cooldowns
+- **Enhanced Error Handling:** Better handling of missing channels and failed operations
+- **Improved User Feedback:** Clear success/error messages and better logging
+
+### 🔧 **System Enhancements**
+- **Better Error Handling:** More robust error catching and user feedback
+- **Improved Logging:** Enhanced debug information for easier troubleshooting
+
+### 🎨 **UI/UX Improvements**
+- **Improved Button Interactions:** More intuitive user interface
+- **Better Status Messages:** Clear feedback for all user actions
+
+
 <div align="center">
   <img src="https://cdn.discordapp.com/attachments/1283833775507374211/1366446046300864716/Unbenannt.PNG?ex=6810f98c&is=680fa80c&hm=29fe9f4e2847377df03a140a4a53982164689d5b7e3979422d8cc039c1e21e20&" alt="NextBot Preview" style="width: 80%; border-radius: 10px;" />
 ---
