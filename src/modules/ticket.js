@@ -17,6 +17,7 @@ const MessageUtils = require("../utils/messageUtils")
 const DATA_DIR = path.join(__dirname, "../../data")
 const TICKETS_DIR = path.join(DATA_DIR, "tickets")
 const USER_TICKETS_DIR = path.join(DATA_DIR, "user-tickets")
+const TRANSCRIPTS_DIR = path.join(DATA_DIR, "transcripts")
 function ensureDirectoriesExist() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true })
@@ -27,6 +28,9 @@ function ensureDirectoriesExist() {
   if (!fs.existsSync(USER_TICKETS_DIR)) {
     fs.mkdirSync(USER_TICKETS_DIR, { recursive: true })
   }
+  if (!fs.existsSync(TRANSCRIPTS_DIR)) {
+    fs.mkdirSync(TRANSCRIPTS_DIR, { recursive: true })
+  }
 }
 module.exports = {
   name: "ticket",
@@ -36,6 +40,7 @@ module.exports = {
   init(client) {
     ensureDirectoriesExist()
     console.log("Ticket module initialized")
+    this.cleanupOrphanedTickets()
   },
   /**
    * @param {Interaction} interaction
@@ -103,6 +108,30 @@ module.exports = {
     } else if (interaction.customId === "ticket_claim_giveaway") {
       console.log("Claim giveaway button clicked by:", interaction.user.tag)
       await this.showGiveawayClaimModal(interaction)
+    } else if (interaction.customId === "ticket_reopen") {
+      const ticketData = this.getTicket(interaction.channel.id)
+      if (ticketData && ticketData.status === "closed") {
+        ticketData.status = "open"
+        delete ticketData.closedBy
+        delete ticketData.closedAt
+        this.saveTicket(interaction.channel.id, ticketData)
+        this.saveUserTicket(ticketData.userId, ticketData)
+        try {
+          await interaction.channel.permissionOverwrites.edit(ticketData.userId, {
+            ViewChannel: true,
+            SendMessages: true,
+            ReadMessageHistory: true,
+          })
+        } catch (error) {
+          console.error("Error restoring channel permissions:", error)
+        }
+        try {
+          await interaction.message.delete()
+        } catch (err) { console.error("Error deleting old close embed:", err) }
+        await interaction.reply({ content: "✅ Ticket reopened!", ephemeral: true })
+      } else {
+        await interaction.reply({ content: "❌ Ticket is not closed or does not exist.", ephemeral: true })
+      }
     } else if (interaction.customId.startsWith("ticket_type_")) {
       const ticketType = interaction.customId.replace("ticket_type_", "")
       await this.createTicketByType(interaction, client, ticketType)
@@ -185,7 +214,9 @@ module.exports = {
   saveTicket(channelId, ticketData) {
     ensureDirectoriesExist()
     const filePath = path.join(TICKETS_DIR, `${channelId}.json`)
+    console.log(`Saving ticket to file: ${filePath}`)
     fs.writeFileSync(filePath, JSON.stringify(ticketData, null, 2))
+    console.log(`Ticket saved to file successfully`)
   },
   /**
    * @param {string} channelId
@@ -194,9 +225,18 @@ module.exports = {
   getTicket(channelId) {
     try {
       const filePath = path.join(TICKETS_DIR, `${channelId}.json`)
-      if (!fs.existsSync(filePath)) return null
+      console.log(`Looking for ticket file: ${filePath}`)
+      if (!fs.existsSync(filePath)) {
+        console.log(`Ticket file does not exist: ${filePath}`)
+        return null
+      }
       const fileContent = fs.readFileSync(filePath, "utf8")
-      return JSON.parse(fileContent)
+      const ticketData = JSON.parse(fileContent)
+      console.log(`Found ticket data:`, ticketData)
+      
+      // Return ticket data regardless of status (needed for reopen functionality)
+      console.log(`Returning ticket for channel: ${channelId}, status: ${ticketData.status}`)
+      return ticketData
     } catch (error) {
       console.error(`Error getting ticket ${channelId}:`, error)
       return null
@@ -231,9 +271,16 @@ module.exports = {
   getUserTicket(userId) {
     try {
       const filePath = path.join(USER_TICKETS_DIR, `${userId}.json`)
-      if (!fs.existsSync(filePath)) return null
+      console.log(`Looking for user ticket file: ${filePath}`)
+      if (!fs.existsSync(filePath)) {
+        console.log(`User ticket file does not exist for user: ${userId}`)
+        return null
+      }
       const fileContent = fs.readFileSync(filePath, "utf8")
-      return JSON.parse(fileContent)
+      const userTicketData = JSON.parse(fileContent)
+      console.log(`Found user ticket data:`, userTicketData)
+      console.log(`Returning user ticket for user: ${userId}, status: ${userTicketData.status}`)
+      return userTicketData
     } catch (error) {
       console.error(`Error getting user ticket ${userId}:`, error)
       return null
@@ -245,8 +292,12 @@ module.exports = {
   deleteUserTicket(userId) {
     try {
       const filePath = path.join(USER_TICKETS_DIR, `${userId}.json`)
+      console.log(`Attempting to delete user ticket file: ${filePath}`)
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath)
+        console.log(`Successfully deleted user ticket file for user: ${userId}`)
+      } else {
+        console.log(`User ticket file does not exist for user: ${userId}`)
       }
     } catch (error) {
       console.error(`Error deleting user ticket ${userId}:`, error)
@@ -254,20 +305,30 @@ module.exports = {
   },
   async createTicket(interaction, client) {
     try {
+      console.log("Starting ticket creation process...")
       if (!interaction.deferred && !interaction.replied) {
         await interaction.deferReply({ ephemeral: true })
       }
       const subject = interaction.fields.getTextInputValue("ticket_subject")
       const description = interaction.fields.getTextInputValue("ticket_description")
+      console.log(`Creating ticket with subject: ${subject}`)
+      console.log(`Checking for existing ticket for user: ${interaction.user.id}`)
       const existingTicket = await this.getUserTicket(interaction.user.id)
       if (existingTicket) {
-        const reply = await interaction.editReply({
-          content: `You already have an open ticket: <#${existingTicket.channelId}>`,
-        })
-        setTimeout(() => {
-          reply.delete().catch((err) => console.error("Error deleting ticket message:", err))
-        }, 5000)
-        return
+        console.log(`Found existing ticket:`, existingTicket)
+        if (existingTicket.status === "open") {
+          const reply = await interaction.editReply({
+            content: `You already have an open ticket: <#${existingTicket.channelId}>`,
+          })
+          setTimeout(() => {
+            reply.delete().catch((err) => console.error("Error deleting ticket message:", err))
+          }, 5000)
+          return
+        } else if (existingTicket.status === "closed") {
+          console.log(`User has a closed ticket, allowing new ticket creation`)
+        }
+      } else {
+        console.log(`No existing ticket found for user: ${interaction.user.id}`)
       }
       let categoryId = null
       if (ticketConfig.ticketCategoryId || process.env.TICKET_CATEGORY_ID) {
@@ -318,19 +379,22 @@ module.exports = {
           })
         }
       }
+      console.log(`Creating ticket channel with name: ticket-${interaction.user.username}`)
       const ticketChannel = await interaction.guild.channels.create({
         name: `ticket-${interaction.user.username}`,
         type: ChannelType.GuildText,
         parent: categoryId,
         permissionOverwrites: permissionOverwrites,
       })
+      console.log(`Ticket channel created: ${ticketChannel.id}`)
       const embed = new EmbedBuilder()
         .setColor(ticketConfig.embed.ticket.color)
-        .setTitle(`Ticket: ${subject}`)
-        .setDescription(description)
+        .setTitle(`🎫 New Ticket: ${subject}`)
+        .setDescription(`📝 **Description:**\n${description}`)
         .addFields(
-          { name: "Created by", value: `<@${interaction.user.id}>` },
-          { name: "Created at", value: `<t:${Math.floor(Date.now() / 1000)}:F>` },
+          { name: "👤 Created by", value: `<@${interaction.user.id}>`, inline: true },
+          { name: "📅 Created at", value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
+          { name: "🆔 Ticket ID", value: ticketChannel.id, inline: true },
         )
       if (ticketConfig.embed.ticket.showTimestamp) {
         embed.setTimestamp()
@@ -367,8 +431,16 @@ module.exports = {
         status: "open",
         ticketType: "standard",
       }
+      console.log(`Saving ticket data for channel: ${ticketChannel.id}`, ticketData)
       this.saveTicket(ticketChannel.id, ticketData)
       this.saveUserTicket(interaction.user.id, ticketData)
+      console.log(`Ticket saved successfully for channel: ${ticketChannel.id}`)
+      const savedTicket = this.getTicket(ticketChannel.id)
+      if (savedTicket) {
+        console.log(`Ticket verification successful: ${savedTicket.channelId}`)
+      } else {
+        console.error(`Ticket verification failed for channel: ${ticketChannel.id}`)
+      }
       if (ticketConfig.enableLogs && ticketConfig.logChannelId) {
         await this.logTicketAction(client, ticketData, "created", interaction.user.id)
       }
@@ -399,13 +471,39 @@ module.exports = {
    */
   async closeTicket(interaction, client) {
     try {
-      const ticketData = this.getTicket(interaction.channel.id)
-      if (!ticketData) {
-        return interaction.reply({
-          content: "This ticket does not exist in the database.",
-          ephemeral: true,
-        })
+      if (interaction.replied || interaction.deferred) {
+        console.log("Interaction already replied to, skipping")
+        return
       }
+
+      console.log(`Attempting to close ticket for channel: ${interaction.channel.id}`)
+      let ticketData = this.getTicket(interaction.channel.id)
+      console.log(`Ticket data found:`, ticketData)
+      
+      if (!ticketData) {
+        console.log(`No ticket data found for channel: ${interaction.channel.id}`)
+        if (interaction.channel.name.startsWith('ticket-') || interaction.channel.name.startsWith('general-') || interaction.channel.name.startsWith('technical-') || interaction.channel.name.startsWith('custom-') || interaction.channel.name.startsWith('prize-')) {
+          console.log(`This appears to be a ticket channel but no data found. Creating emergency ticket data.`)
+          const emergencyTicketData = {
+            userId: interaction.user.id,
+            channelId: interaction.channel.id,
+            guildId: interaction.guild.id,
+            subject: "Emergency Ticket",
+            description: "Ticket created without proper data",
+            createdAt: Date.now(),
+            status: "open",
+            ticketType: "emergency",
+          }
+          this.saveTicket(interaction.channel.id, emergencyTicketData)
+          ticketData = emergencyTicketData
+        } else {
+          return interaction.reply({
+            content: "This ticket does not exist in the database.",
+            ephemeral: true,
+          })
+        }
+      }
+
       const isAdmin = interaction.user.id === process.env.ADMIN_ID
       const isSupport =
         ticketConfig.permissions.supportRoleIds &&
@@ -418,14 +516,38 @@ module.exports = {
           ephemeral: true,
         })
       }
+
+      
+
+      // Update ticket status
       ticketData.status = "closed"
       ticketData.closedBy = interaction.user.id
       ticketData.closedAt = Date.now()
+      console.log(`Updating ticket status to closed for channel: ${interaction.channel.id}`)
       this.saveTicket(interaction.channel.id, ticketData)
+      console.log(`Updating user ticket status to closed for user: ${ticketData.userId}`)
+      this.saveUserTicket(ticketData.userId, ticketData)
+
+      // Log the ticket closure
+      if (ticketConfig.enableLogs && ticketConfig.logChannelId) {
+        console.log("Sending log message for ticket closure...")
+        try {
+          await this.logTicketAction(client, ticketData, "closed", interaction.user.id, transcriptAttachment)
+          console.log("Log message sent successfully")
+        } catch (logError) {
+          console.error("Error sending log message:", logError)
+        }
+      }
+
       const embed = new EmbedBuilder()
         .setColor(ticketConfig.embed.close.color)
-        .setTitle(ticketConfig.embed.close.title)
-        .setDescription(`This ticket was closed by <@${interaction.user.id}>.`)
+        .setTitle(`🔒 Ticket Closed`)
+        .setDescription(`This ticket will be deleted in 10 seconds by <@${interaction.user.id}>.`)
+        .addFields(
+          { name: "👤 Closed by", value: `<@${interaction.user.id}>`, inline: true },
+          { name: "📅 Closed at", value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
+          { name: "🆔 Ticket ID", value: ticketData.channelId, inline: true },
+        )
       if (ticketConfig.embed.close.showTimestamp) {
         embed.setTimestamp()
       }
@@ -435,41 +557,113 @@ module.exports = {
           iconURL: ticketConfig.embed.close.footerIconUrl,
         })
       }
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId("ticket_delete")
-          .setLabel("Delete Ticket")
-          .setStyle(ButtonStyle.Danger)
-          .setEmoji("🗑️"),
-      )
       try {
         await interaction.reply({
           embeds: [embed],
-          components: [row],
         })
+        console.log("Successfully replied to close interaction")
       } catch (error) {
-        console.error("Error replying to close interaction:", error)
+        console.error("Error replying to interaction:", error)
+        try {
+          await interaction.channel.send({
+            content: `Ticket closed by <@${interaction.user.id}>`,
+            embeds: [embed],
+          })
+          console.log("Sent close message to channel instead")
+        } catch (sendError) {
+          console.error("Error sending message to channel:", sendError)
+        }
         return
       }
-      await interaction.channel.permissionOverwrites.edit(ticketData.userId, {
-        ViewChannel: false,
-      })
-      if (ticketConfig.enableLogs && ticketConfig.logChannelId) {
-        await this.logTicketAction(client, ticketData, "closed", interaction.user.id)
-      }
-      this.deleteUserTicket(ticketData.userId)
+      setTimeout(async () => {
+        try {
+          let transcriptAttachment = null
+          if (ticketConfig.transcript && ticketConfig.transcript.enabled) {
+            try {
+              transcriptAttachment = await this.createTranscript(client, ticketData)
+            } catch (error) {
+              console.error("Error creating transcript for auto-deletion:", error)
+            }
+          }
+          // Ticket Closed Embed (mit Transkript)
+          let messageContent = ticketConfig.dmNotification.message
+          if (ticketConfig.dmNotification.ratingEnabled) {
+            const ratingLink = ticketConfig.dmNotification.ratingLink
+            const ratingMessage = ticketConfig.dmNotification.ratingMessage.replace("{ratingLink}", ratingLink)
+            messageContent += "\n\n" + ratingMessage
+          }
+          
+          const closedEmbed = new EmbedBuilder()
+            .setColor(ticketConfig.dmNotification.embed.color)
+            .setTitle(ticketConfig.dmNotification.embed.title)
+            .setDescription(messageContent)
+            .addFields(
+              { name: "👤 Closed by", value: `<@${interaction.user.id}>`, inline: true },
+              { name: "📅 Closed at", value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
+              { name: "🆔 Ticket ID", value: ticketData.channelId, inline: true },
+            )
+          if (ticketConfig.dmNotification.embed.showTimestamp) {
+            closedEmbed.setTimestamp()
+          }
+          if (ticketConfig.dmNotification.embed.footer) {
+            closedEmbed.setFooter({
+              text: ticketConfig.dmNotification.embed.footer,
+              iconURL: ticketConfig.dmNotification.embed.footerIconUrl,
+            })
+          }
+
+          // Send DM notification with transcript to the ticket creator
+          if (ticketConfig.enableDMNotification && ticketConfig.dmNotification.enabled) {
+            try {
+              const user = await client.users.fetch(ticketData.userId).catch(() => null)
+              if (user) {
+                await user.send({ embeds: [closedEmbed], files: transcriptAttachment ? [transcriptAttachment] : [] })
+              }
+            } catch (dmError) {
+              console.error("Error sending DM notification:", dmError)
+            }
+          }
+
+          // Log the ticket closure with transcript
+          if (ticketConfig.enableLogs && ticketConfig.logChannelId) {
+            try {
+              await this.logTicketAction(client, ticketData, "closed", interaction.user.id, transcriptAttachment)
+            } catch (logError) {
+              console.error("Error sending log message:", logError)
+            }
+          }
+
+          // Delete ticket files
+          this.deleteTicketFile(interaction.channel.id)
+          this.deleteUserTicket(ticketData.userId)
+          console.log("Deleted ticket files from database")
+
+          // Delete the channel
+          if (interaction.channel) {
+            await interaction.channel.delete().catch((error) => {
+              console.error("Error deleting channel:", error)
+            })
+          }
+        } catch (error) {
+          console.error("Error in auto-deletion:", error)
+        }
+      }, 10000)
     } catch (error) {
       console.error("Error closing ticket:", error)
-      await interaction.reply({
-        content: "An error occurred while closing the ticket.",
-        ephemeral: true,
-      })
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({
+          content: "An error occurred while closing the ticket.",
+          ephemeral: true,
+        }).catch(console.error)
+      }
     }
   },
   async deleteTicket(interaction, client) {
     try {
+      console.log(`Attempting to delete ticket for channel: ${interaction.channel.id}`)
       const ticketData = this.getTicket(interaction.channel.id)
       if (!ticketData) {
+        console.log(`No ticket data found for channel: ${interaction.channel.id}`)
         return interaction.reply({
           content: "This ticket does not exist in the database.",
           ephemeral: true,
@@ -486,21 +680,54 @@ module.exports = {
           ephemeral: true,
         })
       }
-      if (ticketConfig.enableLogs && ticketConfig.logChannelId) {
-        await this.logTicketAction(client, ticketData, "deleted", interaction.user.id)
+      
+      console.log("Permissions verified, proceeding with deletion")
+      let transcriptAttachment = null
+      if (ticketConfig.transcript && ticketConfig.transcript.enabled) {
+        console.log("Creating transcript for deletion...")
+        try {
+          transcriptAttachment = await this.createTranscript(client, ticketData)
+          console.log("Transcript created successfully for deletion")
+        } catch (error) {
+          console.error("Error creating transcript for deletion:", error)
+        }
       }
-      await MessageUtils.sendTemporaryMessage(interaction, {
-        content: { content: ticketConfig.messages.ticketDeleted.replace("{seconds}", ticketConfig.deleteDelay) },
-        ephemeral: false,
-        deleteAfter: ticketConfig.deleteDelay,
-      })
+      if (ticketConfig.enableDMNotification && ticketConfig.dmNotification.enabled) {
+        console.log("Sending DM notification for deletion...")
+        try {
+          await this.sendTicketClosedDM(client, ticketData, interaction.guild, transcriptAttachment)
+          console.log("DM notification sent successfully")
+        } catch (dmError) {
+          console.error("Error sending DM notification:", dmError)
+        }
+      }
+      if (ticketConfig.enableLogs && ticketConfig.logChannelId) {
+        console.log("Sending log message...")
+        try {
+          await this.sendTicketDeletedLog(client, ticketData, transcriptAttachment, interaction.user.id) // Don't send transcript to log channel
+          console.log("Log message sent successfully")
+        } catch (logError) {
+          console.error("Error sending log message:", logError)
+        }
+      }
+      try {
+        await interaction.channel.send({
+          content: ticketConfig.messages.ticketDeleted.replace("{seconds}", ticketConfig.deleteDelay),
+        })
+        console.log("Sent deletion message to channel")
+      } catch (sendError) {
+        console.error("Error sending deletion message:", sendError)
+      }
       this.deleteTicketFile(interaction.channel.id)
+      this.deleteUserTicket(ticketData.userId)
+      console.log("Deleted ticket files from database")
       setTimeout(async () => {
         try {
           if (interaction.channel) {
             await interaction.channel.delete().catch((error) => {
               console.error("Error deleting channel:", error)
             })
+            console.log("Channel deleted successfully")
           }
         } catch (error) {
           console.error("Error in channel deletion timeout:", error)
@@ -508,13 +735,24 @@ module.exports = {
       }, ticketConfig.deleteDelay * 1000)
     } catch (error) {
       console.error("Error deleting ticket:", error)
-      if (!interaction.replied && !interaction.deferred) {
-        await interaction
-          .reply({
+      try {
+        if (!interaction.replied && !interaction.deferred) {
+          await interaction
+            .reply({
+              content: "An error occurred while deleting the ticket.",
+              ephemeral: true,
+            })
+            .catch(console.error)
+        }
+      } catch (replyError) {
+        console.error("Error replying to interaction:", replyError)
+        try {
+          await interaction.channel.send({
             content: "An error occurred while deleting the ticket.",
-            ephemeral: true,
           })
-          .catch(console.error)
+        } catch (sendError) {
+          console.error("Error sending error message to channel:", sendError)
+        }
       }
     }
   },
@@ -523,8 +761,9 @@ module.exports = {
    * @param {Object} ticketData
    * @param {string} action
    * @param {string} userId
+   * @param {AttachmentBuilder|null} transcriptAttachment
    */
-  async logTicketAction(client, ticketData, action, userId) {
+  async logTicketAction(client, ticketData, action, userId, transcriptAttachment = null) {
     try {
       if (!ticketConfig.enableLogs || !ticketConfig.logChannelId) {
         return
@@ -534,27 +773,43 @@ module.exports = {
         console.error(`Log channel ${ticketConfig.logChannelId} not found`)
         return
       }
-      const _createdBy = "@apt_start_latifi | https://nextbot.store/ | https://discord.gg/KcuMUUAP5T"
       const actionUser = await client.users.fetch(userId).catch(() => null)
       const actionUserName = actionUser ? actionUser.tag : "Unknown User"
       const ticketCreator = await client.users.fetch(ticketData.userId).catch(() => null)
       const creatorName = ticketCreator ? ticketCreator.tag : "Unknown User"
+      
+      // Create action-specific emoji and title
+      let actionEmoji, actionTitle, embedColor
+      if (action === "created") {
+        actionEmoji = "🎫"
+        actionTitle = "Ticket Created"
+        embedColor = ticketConfig.embed.log.color || "#00ff00"
+      } else if (action === "closed") {
+        actionEmoji = "🔒"
+        actionTitle = "Ticket Closed"
+        embedColor = ticketConfig.embed.log.color || "#ff9900"
+      } else if (action === "deleted") {
+        actionEmoji = "🗑️"
+        actionTitle = "Ticket Deleted"
+        embedColor = ticketConfig.embed.log.color || "#ff0000"
+      }
+      
       const embed = new EmbedBuilder()
-        .setColor(ticketConfig.embed.log.color)
-        .setTitle(`Ticket ${action === "created" ? "created" : action === "closed" ? "closed" : "deleted"}`)
+        .setColor(embedColor)
+        .setTitle(`${actionEmoji} ${actionTitle}`)
         .addFields(
-          { name: "Ticket ID", value: ticketData.channelId, inline: true },
-          { name: "Ticket Type", value: ticketData.ticketType || "Standard", inline: true },
-          { name: "Created by", value: `${creatorName} (${ticketData.userId})`, inline: true },
-          { name: "Created at", value: `<t:${Math.floor(ticketData.createdAt / 1000)}:F>`, inline: true },
-          { name: "Action performed by", value: `${actionUserName} (${userId})`, inline: true },
-          { name: "Action performed at", value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
+          { name: "🆔 Ticket ID", value: ticketData.channelId, inline: true },
+          { name: "📋 Ticket Type", value: ticketData.ticketType || "Standard", inline: true },
+          { name: "👤 Created by", value: `${creatorName} (${ticketData.userId})`, inline: true },
+          { name: "📅 Created at", value: `<t:${Math.floor(ticketData.createdAt / 1000)}:F>`, inline: true },
+          { name: "⚡ Action performed by", value: `${actionUserName} (${userId})`, inline: true },
+          { name: "⏰ Action performed at", value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
         )
       if (ticketData.subject) {
-        embed.addFields({ name: "Subject", value: ticketData.subject })
+        embed.addFields({ name: "📝 Subject", value: ticketData.subject })
       }
       if (ticketData.isGiveawayWinner) {
-        embed.addFields({ name: "Prize", value: ticketData.prize || "Unknown" })
+        embed.addFields({ name: "🎁 Prize", value: ticketData.prize || "Unknown" })
       }
       if (ticketConfig.embed.log.showTimestamp) {
         embed.setTimestamp()
@@ -565,7 +820,13 @@ module.exports = {
           iconURL: ticketConfig.embed.log.footerIconUrl,
         })
       }
-      await logChannel.send({ embeds: [embed] })
+      
+      const logOptions = { embeds: [embed] }
+      if (transcriptAttachment) {
+        logOptions.files = [transcriptAttachment]
+      }
+      
+      await logChannel.send(logOptions)
     } catch (error) {
       console.error("Error logging ticket action:", error)
     }
@@ -599,7 +860,6 @@ module.exports = {
         }
         categoryId = category.id
       }
-
       const permissionOverwrites = [
         {
           id: interaction.guild.id,
@@ -643,18 +903,22 @@ module.exports = {
       })
       const embed = new EmbedBuilder()
         .setColor(ticketConfig.embed.giveaway.color)
-        .setTitle(`Prize: ${prize}`)
+        .setTitle(`🎁 Prize Ticket: ${prize}`)
         .setDescription(
-          `Congratulations <@${interaction.user.id}> on your prize!\nA team member will assist you with the delivery shortly.`,
+          `🎉 Congratulations <@${interaction.user.id}> on your prize!\nA team member will assist you with the delivery shortly.`,
         )
-        .addFields({ name: "Winner", value: `<@${interaction.user.id}>` }, { name: "Prize", value: prize })
+        .addFields(
+          { name: "🏆 Winner", value: `<@${interaction.user.id}>`, inline: true },
+          { name: "🎁 Prize", value: prize, inline: true },
+          { name: "📅 Created at", value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
+        )
       if (description) {
-        embed.addFields({ name: "Description", value: description })
+        embed.addFields({ name: "📝 Description", value: description })
       }
       if (giveawayId) {
-        embed.addFields({ name: "Giveaway ID", value: giveawayId })
+        embed.addFields({ name: "🆔 Giveaway ID", value: giveawayId, inline: true })
       }
-      embed.addFields({ name: "Created at", value: `<t:${Math.floor(Date.now() / 1000)}:F>` })
+      embed.addFields({ name: "🆔 Ticket ID", value: ticketChannel.id, inline: true })
       if (ticketConfig.embed.giveaway.showTimestamp) {
         embed.setTimestamp()
       }
@@ -744,7 +1008,7 @@ module.exports = {
   async showTicketTypeSelection(interaction) {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId('ticket_type_general")_type_general')
+        .setCustomId("ticket_type_general")
         .setLabel("General Support")
         .setStyle(ButtonStyle.Primary)
         .setEmoji("🔧"),
@@ -759,7 +1023,6 @@ module.exports = {
         .setStyle(ButtonStyle.Secondary)
         .setEmoji("🎨"),
     )
-    const _createdBy = "@apt_start_latifi | https://nextbot.store/ | https://discord.gg/KcuMUUAP5T"
     const embed = new EmbedBuilder()
       .setColor(ticketConfig.embed.panel.color)
       .setTitle("Select Support Type")
@@ -773,8 +1036,14 @@ module.exports = {
   },
   async createTicketByType(interaction, client, ticketType) {
     try {
+      console.log(`Creating ticket by type: ${ticketType}`)
       if (!interaction.deferred && !interaction.replied) {
-        await interaction.deferReply({ ephemeral: true })
+        try {
+          await interaction.reply({ content: "Creating ticket...", ephemeral: true })
+        } catch (error) {
+          console.error("Error replying to interaction:", error)
+          return
+        }
       }
       const ticketTypeNames = {
         general: "General Support",
@@ -782,8 +1051,10 @@ module.exports = {
         custom: "Custom Support",
       }
       const typeName = ticketTypeNames[ticketType] || "Support"
+      console.log(`Checking for existing ticket for user: ${interaction.user.id}`)
       const existingTicket = await this.getUserTicket(interaction.user.id)
       if (existingTicket) {
+        console.log(`Found existing ticket:`, existingTicket)
         const reply = await interaction.editReply({
           content: `You already have an open ticket: <#${existingTicket.channelId}>`,
           components: [],
@@ -793,6 +1064,8 @@ module.exports = {
           reply.delete().catch((err) => console.error("Error deleting ticket message:", err))
         }, 5000)
         return
+      } else {
+        console.log(`No existing ticket found for user: ${interaction.user.id}`)
       }
       let categoryId = null
       if (ticketConfig.ticketCategoryId || process.env.TICKET_CATEGORY_ID) {
@@ -851,16 +1124,17 @@ module.exports = {
       })
       const embed = new EmbedBuilder()
         .setColor(ticketConfig.embed.ticket.color)
-        .setTitle(`${typeName} Ticket`)
-        .setDescription(`Hello <@${interaction.user.id}>,
+        .setTitle(`🎫 ${typeName} Ticket`)
+        .setDescription(`👋 Hello <@${interaction.user.id}>,
 
 Thank you for your request. A team member will assist you shortly.
 
 In the meantime, please describe your issue in as much detail as possible so we can help you quickly.`)
         .addFields(
-          { name: "Ticket Type", value: typeName, inline: true },
-          { name: "Created by", value: `<@${interaction.user.id}>`, inline: true },
-          { name: "Created at", value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
+          { name: "📋 Ticket Type", value: typeName, inline: true },
+          { name: "👤 Created by", value: `<@${interaction.user.id}>`, inline: true },
+          { name: "📅 Created at", value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
+          { name: "🆔 Ticket ID", value: ticketChannel.id, inline: true },
         )
       if (ticketConfig.embed.ticket.showTimestamp) {
         embed.setTimestamp()
@@ -896,8 +1170,16 @@ In the meantime, please describe your issue in as much detail as possible so we 
         createdAt: Date.now(),
         status: "open",
       }
+      console.log(`Saving ticket data for channel: ${ticketChannel.id}`, ticketData)
       this.saveTicket(ticketChannel.id, ticketData)
       this.saveUserTicket(interaction.user.id, ticketData)
+      console.log(`Ticket saved successfully for channel: ${ticketChannel.id}`)
+      const savedTicket = this.getTicket(ticketChannel.id)
+      if (savedTicket) {
+        console.log(`Ticket verification successful: ${savedTicket.channelId}`)
+      } else {
+        console.error(`Ticket verification failed for channel: ${ticketChannel.id}`)
+      }
       if (ticketConfig.enableLogs && ticketConfig.logChannelId) {
         await this.logTicketAction(client, ticketData, "created", interaction.user.id)
       }
@@ -908,19 +1190,30 @@ In the meantime, please describe your issue in as much detail as possible so we 
       })
     } catch (error) {
       console.error("Error creating ticket:", error)
-      if (interaction.replied || interaction.deferred) {
-        await interaction
-          .editReply({
+      try {
+        if (interaction.replied || interaction.deferred) {
+          await interaction
+            .editReply({
+              content: "An error occurred while creating the ticket.",
+            })
+            .catch(console.error)
+        } else {
+          await interaction
+            .reply({
+              content: "An error occurred while creating the ticket.",
+              ephemeral: true,
+            })
+            .catch(console.error)
+        }
+      } catch (replyError) {
+        console.error("Error replying to interaction:", replyError)
+        try {
+          await interaction.channel.send({
             content: "An error occurred while creating the ticket.",
           })
-          .catch(console.error)
-      } else {
-        await interaction
-          .reply({
-            content: "An error occurred while creating the ticket.",
-            ephemeral: true,
-          })
-          .catch(console.error)
+        } catch (sendError) {
+          console.error("Error sending error message:", sendError)
+        }
       }
     }
   },
@@ -933,6 +1226,256 @@ In the meantime, please describe your issue in as much detail as possible so we 
       await message.delete()
     } catch (error) {
       console.error("Error deleting message:", error)
+    }
+  },
+  /**
+   * @param {Client} client
+   * @param {Object} ticketData
+   * @param {Guild} guild
+   */
+  async sendTicketClosedDM(client, ticketData, guild, transcriptAttachment = null) {
+    try {
+      console.log(`Attempting to send DM to user ${ticketData.userId}...`)
+      const user = await client.users.fetch(ticketData.userId).catch(() => null)
+      if (!user) {
+        console.error(`Could not fetch user ${ticketData.userId} for DM notification`)
+        return
+      }
+      console.log(`Found user: ${user.tag}`)
+      let messageContent = ticketConfig.dmNotification.message
+      if (ticketConfig.dmNotification.ratingEnabled) {
+        const ratingLink = ticketConfig.dmNotification.ratingLink
+        const ratingMessage = ticketConfig.dmNotification.ratingMessage.replace("{ratingLink}", ratingLink)
+        messageContent += "\n\n" + ratingMessage
+      }
+      const embed = new EmbedBuilder()
+        .setColor(ticketConfig.dmNotification.embed.color)
+        .setTitle(ticketConfig.dmNotification.embed.title)
+        .setDescription(messageContent)
+      if (ticketConfig.dmNotification.embed.showTimestamp) {
+        embed.setTimestamp()
+      }
+
+      if (ticketConfig.dmNotification.embed.footer) {
+        embed.setFooter({
+          text: ticketConfig.dmNotification.embed.footer,
+          iconURL: ticketConfig.dmNotification.embed.footerIconUrl,
+        })
+      }
+      console.log("Preparing DM options...")
+      const dmOptions = {
+        content: `<@${ticketData.userId}>`,
+        embeds: [embed]
+      }
+      
+      if (transcriptAttachment) {
+        dmOptions.files = [transcriptAttachment]
+        console.log("Sending DM with transcript attachment")
+      } else {
+        console.log("Sending DM without transcript attachment")
+      }
+      console.log("Sending DM to user...")
+      await user.send(dmOptions)
+      
+      console.log(`Sent ticket closed DM to ${user.tag} (${ticketData.userId})`)
+    } catch (error) {
+      console.error(`Error sending ticket closed DM to user ${ticketData.userId}:`, error)
+      if (transcriptAttachment) {
+        try {
+          console.log("Retrying DM without transcript...")
+          const retryEmbed = new EmbedBuilder()
+            .setColor(ticketConfig.dmNotification.embed.color)
+            .setTitle(ticketConfig.dmNotification.embed.title)
+            .setDescription(ticketConfig.dmNotification.message)
+          if (ticketConfig.dmNotification.embed.showTimestamp) {
+            retryEmbed.setTimestamp()
+          }
+          if (ticketConfig.dmNotification.embed.footer) {
+            retryEmbed.setFooter({
+              text: ticketConfig.dmNotification.embed.footer,
+              iconURL: ticketConfig.dmNotification.embed.footerIconUrl,
+            })
+          }
+          await user.send({
+            content: `<@${ticketData.userId}>`,
+            embeds: [retryEmbed]
+          })
+          console.log(`Sent ticket closed DM without transcript to ${user.tag} (${ticketData.userId})`)
+        } catch (retryError) {
+          console.error(`Error sending DM without transcript:`, retryError)
+        }
+      }
+      const isDMDisabled =
+        error.message &&
+        (error.message.includes("Cannot send messages to this user") ||
+          error.message.includes("Missing Access") ||
+          error.message.includes("Forbidden"))
+      
+      if (isDMDisabled) {
+        console.log(`User ${ticketData.userId} has DMs disabled or blocked the bot`)
+      }
+    }
+  },
+  /**
+   * @param {Client} client
+   * @param {Object} ticketData
+   * @returns {Promise<AttachmentBuilder|null>}
+   */
+  async createTranscript(client, ticketData) {
+    try {
+      console.log(`Creating transcript for channel: ${ticketData.channelId}`)
+      const channel = await client.channels.fetch(ticketData.channelId).catch(() => null)
+      if (!channel) {
+        console.error(`Could not fetch channel ${ticketData.channelId} for transcript`)
+        return null
+      }
+      console.log(`Successfully fetched channel: ${channel.name}`)
+      console.log(`Fetching messages for transcript...`)
+      const messages = await channel.messages.fetch({ limit: ticketConfig.transcript.maxMessages })
+      console.log(`Found ${messages.size} messages`)
+      const sortedMessages = messages.sort((a, b) => a.createdTimestamp - b.createdTimestamp)
+      const supporterRoleIds = ticketConfig.permissions.supportRoleIds || []
+      const botId = client.user.id
+      let transcript = ''
+      transcript += `=== TICKET TRANSCRIPT ===\n`
+      transcript += `Ticket ID: ${ticketData.channelId}\n`
+      transcript += `Created by: ${ticketData.userId}\n`
+      transcript += `Created at: ${new Date(ticketData.createdAt).toLocaleString()}\n`
+      transcript += `Status: ${ticketData.status}\n`
+      transcript += `Subject: ${ticketData.subject || 'N/A'}\n`
+      transcript += `Type: ${ticketData.ticketType || 'Standard'}\n`
+      transcript += `\n=== MESSAGES ===\n\n`
+      for (const message of sortedMessages.values()) {
+        if (message.author.id === botId) {
+          continue
+        }
+        const isTicketCreator = message.author.id === ticketData.userId
+        const isSupporter = message.member && message.member.roles.cache.some(role => supporterRoleIds.includes(role.id))
+        if (!isTicketCreator && !isSupporter) {
+          continue
+        }
+        const timestamp = new Date(message.createdTimestamp).toLocaleString()
+        const author = message.author.tag
+        const content = message.content || '[No text content]'
+        transcript += `[${timestamp}] ${author}:\n${content}\n`
+        if (ticketConfig.transcript.includeEmbeds && message.embeds.length > 0) {
+          for (const embed of message.embeds) {
+            transcript += `[EMBED] ${embed.title || 'No title'}\n`
+            if (embed.description) transcript += `${embed.description}\n`
+            if (embed.fields && embed.fields.length > 0) {
+              for (const field of embed.fields) {
+                transcript += `[FIELD] ${field.name}: ${field.value}\n`
+              }
+            }
+          }
+        }
+        if (ticketConfig.transcript.includeAttachments && message.attachments.size > 0) {
+          for (const attachment of message.attachments.values()) {
+            transcript += `[ATTACHMENT] ${attachment.name} (${attachment.url})\n`
+          }
+        }
+        transcript += '\n'
+      }
+      transcript += '\n=== END OF TRANSCRIPT ===\nCreated by @apt_start_latifi 👾 discord.gg/KcuMUUAP5T'
+      const fileName = ticketConfig.transcript.fileName.replace('{ticketId}', ticketData.channelId)
+      const filePath = path.join(TRANSCRIPTS_DIR, fileName)
+      console.log(`Writing transcript to file: ${filePath}`)
+      fs.writeFileSync(filePath, transcript, 'utf8')
+      console.log(`Transcript written to file successfully`)
+      const { AttachmentBuilder } = require('discord.js')
+      const attachment = new AttachmentBuilder(filePath, { name: fileName })
+      console.log(`Created transcript attachment: ${fileName}`)
+      setTimeout(() => {
+        try {
+          fs.unlinkSync(filePath)
+          console.log(`Cleaned up transcript file: ${fileName}`)
+        } catch (error) {
+          console.error('Error cleaning up transcript file:', error)
+        }
+      }, 60000) 
+
+      return attachment
+    } catch (error) {
+      console.error('Error creating transcript:', error)
+      return null
+    }
+  },
+
+  /**
+   * Clean up orphaned ticket files
+   */
+  cleanupOrphanedTickets() {
+    try {
+      console.log("Cleaning up orphaned ticket files...")
+      if (fs.existsSync(TICKETS_DIR)) {
+        const ticketFiles = fs.readdirSync(TICKETS_DIR)
+        for (const file of ticketFiles) {
+          if (file.endsWith('.json')) {
+            const filePath = path.join(TICKETS_DIR, file)
+            try {
+              const ticketData = JSON.parse(fs.readFileSync(filePath, 'utf8'))
+              if (ticketData.status === 'closed') {
+                fs.unlinkSync(filePath)
+                console.log(`Deleted closed ticket file: ${file}`)
+              }
+            } catch (error) {
+              console.error(`Error processing ticket file ${file}:`, error)
+              fs.unlinkSync(filePath)
+              console.log(`Deleted corrupted ticket file: ${file}`)
+            }
+          }
+        }
+      }
+      if (fs.existsSync(USER_TICKETS_DIR)) {
+        const userTicketFiles = fs.readdirSync(USER_TICKETS_DIR)
+        for (const file of userTicketFiles) {
+          if (file.endsWith('.json')) {
+            const filePath = path.join(USER_TICKETS_DIR, file)
+            try {
+              const userTicketData = JSON.parse(fs.readFileSync(filePath, 'utf8'))
+              if (userTicketData.status === 'closed') {
+                fs.unlinkSync(filePath)
+                console.log(`Deleted closed user ticket file: ${file}`)
+              }
+            } catch (error) {
+              console.error(`Error processing user ticket file ${file}:`, error)
+              fs.unlinkSync(filePath)
+              console.log(`Deleted corrupted user ticket file: ${file}`)
+            }
+          }
+        }
+      }
+      console.log("Cleanup completed")
+    } catch (error) {
+      console.error("Error during cleanup:", error)
+    }
+  },
+  /**
+   * @param {Client} client
+   * @param {Object} ticketData
+   */
+  async sendTicketDeletedLog(client, ticketData, transcriptAttachment, deletedByUserId) {
+    try {
+      const logChannel = await client.channels.fetch(ticketConfig.logChannelId).catch(() => null)
+      if (!logChannel) {
+        console.error(`Log channel ${ticketConfig.logChannelId} not found`)
+        return
+      }
+      const embed = new EmbedBuilder()
+        .setColor(ticketConfig.embed.log.color)
+        .setTitle("🗑️ Ticket gelöscht")
+        .setDescription(`Das Ticket <#${ticketData.channelId}> wurde gelöscht.\n\n👤 <@${ticketData.userId}> | 📝 ${ticketData.subject || 'Kein Betreff'}`)
+        .addFields(
+          { name: "Typ", value: ticketData.ticketType || "Standard", inline: true },
+          { name: "Erstellt am", value: `<t:${Math.floor(ticketData.createdAt / 1000)}:F>`, inline: true },
+          { name: "Gelöscht von", value: `<@${deletedByUserId}>`, inline: true }
+        )
+        .setTimestamp()
+        .setFooter({ text: "LatifiMods Support", iconURL: ticketConfig.embed.log.footerIconUrl })
+      await logChannel.send({ embeds: [embed] })
+      console.log("Ticket deleted log sent successfully")
+    } catch (error) {
+      console.error("Error sending ticket deleted log:", error)
     }
   },
 }

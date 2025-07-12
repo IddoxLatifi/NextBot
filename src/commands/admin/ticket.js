@@ -105,7 +105,6 @@ module.exports = {
             EmbedBuilder.success(
               "Log Channel Set",
               `The log channel for the ticket system has been set to <#${logChannel.id}>.
-              
 Please also update your .env file with:
 \`\`\`
 TICKET_LOG_CHANNEL_ID=${logChannel.id}

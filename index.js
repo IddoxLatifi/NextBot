@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const { Client, Collection, GatewayIntentBits, Partials } = require("discord.js");
 const chalk = require("chalk");
-const _createdBy = '@apt_start_latifi | https://nextbot.store/ | https://discord.gg/KcuMUUAP5T';
+const _createdBy = '@apt_start_latifi | https://iddox.tech | https://discord.gg/KcuMUUAP5T';
 const dataDir = path.join(__dirname, "data");
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
@@ -76,7 +76,7 @@ client.login(process.env.DISCORD_TOKEN).then(() => {
   `));
   console.log(chalk.greenBright("\nNextBot is now online!\n"));
   console.log(chalk.yellow("Developed by: ") + chalk.white("@apt_start_latifi"));
-  console.log(chalk.yellow("Website: ") + chalk.white("https://nextbot.store/"));
+  console.log(chalk.yellow("Website: ") + chalk.white("https://iddox.tech"));
   console.log(chalk.yellow("Discord: ") + chalk.white("https://discord.gg/KcuMUUAP5T"));
 }).catch((error) => {
   console.error(chalk.redBright("❌ Error logging in:"), error);

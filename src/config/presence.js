@@ -6,12 +6,12 @@ module.exports = {
   welcomeDuration: 30000, // How long the greeting is displayed (in milliseconds, default: 30 seconds)
   activities: [
     {
-      text: "nextbot.store",
+      text: "iddox.tech👾",
       type: "Playing", // Playing, Watching, Listening, Competing
       status: "online", // online, idle, dnd, invisible
     },
     {
-      text: "shop.iddox.tech",
+      text: "LatifiMods",
       type: "Listening",
       status: "idle",
     },
@@ -21,20 +21,20 @@ module.exports = {
       status: "dnd",
     },
     {
-      text: "os.nextbot.store",
+      text: ".gg/latifimods",
       type: "Competing",
       status: "online",
     },
     {
-      text: "auf Twitch",
+      text: "Watch my Tutorials",
       type: "Streaming",
-      url: "https://twitch.tv/username", // Twitch-URL für Streaming
+      url: "https://www.youtube.com/watch?v=XSvfOTOA7EM", // Twitch-URL für Streaming
       status: "idle",
     },
     {
-      text: "YouTube",
+      text: "GRP Blacklist",
       type: "Streaming",
-      url: "https://www.youtube.com/watch?v=XSvfOTOA7EM", // YouTube-URL für Streaming
+      url: "https://www.youtube.com/watch?v=JmyDVhWMIS0", // YouTube-URL für Streaming
       status: "dnd",
     },
   ],

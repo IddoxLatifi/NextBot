@@ -1,5 +1,9 @@
 const { EmbedBuilder } = require("discord.js")
 const welcomeConfig = require("../config/welcome")
+
+// Rate limiting for welcome messages
+const welcomeCooldowns = new Map()
+
 module.exports = {
   name: "welcome",
   /**
@@ -26,24 +30,6 @@ module.exports = {
     return replacedText
   },
   /**
-   * @param {string} text
-   * @returns {string}
-   */
-  replaceChannelPlaceholdersForDM(text) {
-    if (!text) return text
-    let replacedText = text
-
-    if (welcomeConfig.channelLinks) {
-      for (const [channelName, channelLink] of Object.entries(welcomeConfig.channelLinks)) {
-        const placeholder = `{${channelName}}`
-        if (replacedText.includes(placeholder)) {
-          replacedText = replacedText.replace(new RegExp(placeholder, "g"), channelLink)
-        }
-      }
-    }
-    return replacedText
-  },
-  /**
    * @param {GuildMember} member
    * @param {Client} client
    */
@@ -52,7 +38,34 @@ module.exports = {
       if (!welcomeConfig.enabled) {
         return
       }
-      const _createdBy = "@apt_start_latifi | https://nextbot.store/ | https://discord.gg/KcuMUUAP5T"
+
+      // Rate limiting check
+      if (welcomeConfig.rateLimit && welcomeConfig.rateLimit.enabled) {
+        const cooldownKey = `${member.guild.id}-${member.id}`
+        const now = Date.now()
+        const cooldownTime = welcomeConfig.rateLimit.cooldownTime || 30000 // 30 seconds cooldown
+        
+        if (welcomeCooldowns.has(cooldownKey)) {
+          const lastWelcome = welcomeCooldowns.get(cooldownKey)
+          if (now - lastWelcome < cooldownTime) {
+            console.log(`Welcome message skipped for ${member.user.tag} due to rate limiting`)
+            return
+          }
+        }
+        
+        // Set cooldown
+        welcomeCooldowns.set(cooldownKey, now)
+        
+        // Clean up old cooldowns
+        const cleanupInterval = welcomeConfig.rateLimit.cleanupInterval || 300000 // 5 minutes
+        for (const [key, timestamp] of welcomeCooldowns.entries()) {
+          if (now - timestamp > cleanupInterval) {
+            welcomeCooldowns.delete(key)
+          }
+        }
+      }
+
+      const _createdBy = "@apt_start_latifi | https://iddox.tech/ | https://discord.gg/KcuMUUAP5T"
       const welcomeChannelId = process.env.WELCOME_CHANNEL_ID
       const welcomeChannel = await member.guild.channels.fetch(welcomeChannelId).catch(() => null)
       if (!welcomeChannel) {
@@ -158,7 +171,7 @@ module.exports = {
             }
           }
           let dmDescription = welcomeConfig.dmMessage.replace("{user}", member.user.username)
-          dmDescription = this.replaceChannelPlaceholdersForDM(dmDescription)
+          dmDescription = this.replaceChannelPlaceholders(dmDescription)
           if (inviteUrl) {
             dmDescription = dmDescription.replace("{invite}", inviteUrl)
           } else {

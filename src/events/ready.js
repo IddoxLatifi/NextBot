@@ -33,7 +33,7 @@ module.exports = {
   updatePresence,
 }
 function updatePresence(client) {
-  const _createdBy = "@apt_start_latifi | https://nextbot.store/ | https://discord.gg/KcuMUUAP5T"
+  const _createdBy = "@apt_start_latifi | https://iddox.tech | https://discord.gg/KcuMUUAP5T"
   const presences = presenceConfig.activities
   const randomPresence = presences[Math.floor(Math.random() * presences.length)]
   const activity = {

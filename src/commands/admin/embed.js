@@ -19,7 +19,7 @@ module.exports = {
         color: "#5865F2",
         fields: [],
         footer: {
-          text: process.env.FOOTER_TEXT || "MultiBot | Created by @apt_start_latifi | shop.iddox.tech",
+          text: process.env.FOOTER_TEXT || "",
           iconURL: process.env.EMBED_FOOTER_IMAGE_URL || null,
         },
         timestamp: true,
