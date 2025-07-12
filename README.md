@@ -15,7 +15,7 @@
 > **NextBot** is a modular, customizable Discord Bot providing advanced server management and interactive features.
 
 Currently in **Beta** 🛠️ — under active development and testing!
-## v0.1.1 Aviable now! [Download here!](https://github.com/IddoxLatifi/NextBot/releases/tag/v0.1.1)
+## Stable v0.1.1 is aviable now! [Download here!](https://github.com/IddoxLatifi/NextBot/releases/tag/v0.1.1)
 ## 🔄 Latest Updates & Improvements
 
 ### 🎯 **Enhanced Ticket System**
