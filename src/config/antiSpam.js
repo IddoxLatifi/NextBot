@@ -1,35 +1,35 @@
 module.exports = {
-  enabled: true,
-  maxMessages: 5,
-  timeWindow: 3,
-  cooldownTime: 10,
-  sendWarning: true,
-  deleteWarningDelay: 15,
-  exemptChannels: [],
-  exemptRoles: [],
-  exemptUsers: [
+  "enabled": false,
+  "maxMessages": 5,
+  "timeWindow": 3,
+  "cooldownTime": 10,
+  "sendWarning": true,
+  "deleteWarningDelay": 15,
+  "exemptChannels": [],
+  "exemptRoles": [],
+  "exemptUsers": [
     ""
   ],
   "embed": {
-    color: "#F04747",
-    title: "Spam detected!",
-    description: "**{username}**, please do not send so many messages in a short period of time.",
-    "footer": process.env.FOOTER_TEXT ||"",
-    "footerIconUrl": process.env.EMBED_FOOTER_IMAGE_URL || "",
-    showTimestamp: true
+    "color": "#F04747",
+    "title": "Spam detected!",
+    "description": "**{username}**, please do not send so many messages in a short period of time.",
+    "footer": process.env.FOOTER_TEXT || "",
+    "footerIconUrl": process.env.EMBED_FOOTER_IMAGE_URL  || "",
+    "showTimestamp": true
   },
   "punishment": {
-    enabled: true,
+    "enabled": true,
     "type": "mute",
-    muteDuration: 5,
-    reason: "Send spam messages"
+    "muteDuration": 5,
+    "reason": "Send spam messages"
   },
   "logging": {
-    enabled: false,
+    "enabled": false,
     "channelId": ""
   },
   "badWords": {
-    enabled: true,
+    "enabled": true,
     "additionalWords": [
       "arsch",
       "arschloch",
@@ -100,16 +100,16 @@ module.exports = {
     "deleteMessage": true,
     "punishUser": true,
     "embed": {
-      color: "#F04747",
-      title: "Swear word recognized!",
-      description: "**{username}**, please do not use inappropriate language.",
+      "color": "#F04747",
+      "title": "Swear word recognized!",
+      "description": "**{username}**, please do not use inappropriate language.",
       "footer": process.env.FOOTER_TEXT || "",
-      "footerIconUrl": process.env.EMBED_FOOTER_IMAGE_URL ||"",
+      "footerIconUrl": process.env.EMBED_FOOTER_IMAGE_URL  || "",
       "showTimestamp": true
     }
   },
   "suspiciousLinks": {
-    enabled: true,
+    "enabled": true,
     "suspiciousDomains": [
       "bit.ly",
       "goo.gl",
@@ -151,14 +151,14 @@ module.exports = {
       "stopify.co",
       "leancoding.co"
     ],
-    deleteMessage: true,
-    punishUser: true,
+    "deleteMessage": true,
+    "punishUser": true,
     "embed": {
-      color: "#F04747",
-      title: "Suspicious link detected!",
-      description: "**{username}**, please do not send suspicious links.",
-      "footer": process.env.FOOTER_TEXT ||"",
-      "footerIconUrl": process.env.EMBED_FOOTER_IMAGE_URL || "",
+      "color": "#F04747",
+      "title": "Suspicious link detected!",
+      "description": "**{username}**, please do not send suspicious links.",
+      "footer":  process.env.FOOTER_TEXT || "",
+      "footerIconUrl": process.env.EMBED_FOOTER_IMAGE_URL  || "",
       "showTimestamp": true
     }
   }

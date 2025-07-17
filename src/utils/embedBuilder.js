@@ -38,7 +38,7 @@ class EmbedBuilderUtil {
       title,
       description,
       color: "#43B581", 
-      footer: "Erfolgreich",
+      footer: "Success",
     })
   }
   /**
@@ -51,7 +51,7 @@ class EmbedBuilderUtil {
       title,
       description,
       color: "#F04747", 
-      footer: "Fehler",
+      footer: "Error",
     })
   }
 
@@ -65,7 +65,7 @@ class EmbedBuilderUtil {
       title,
       description,
       color: "#FAA61A", 
-      footer: "Warnung",
+      footer: "Warning",
     })
   }
   /**

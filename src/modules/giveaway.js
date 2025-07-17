@@ -927,7 +927,6 @@ module.exports = {
           weights.push({ userId, weight })
         }
         while (winners.length < winnerCount && weights.length > 0) {
-          // Calculate total weight
           const totalWeight = weights.reduce((sum, entry) => sum + entry.weight, 0)
           const random = Math.random() * totalWeight
           let cumulativeWeight = 0

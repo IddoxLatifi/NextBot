@@ -17,12 +17,9 @@ module.exports = {
       const channel = interaction.options.getChannel("channel")
       process.env.WELCOME_CHANNEL_ID = channel.id
       const configPath = path.join(__dirname, "../../config/welcome.js")
-      let welcomeConfig
       try {
-        delete require.cache[require.resolve("../../config/welcome.js")]
-        welcomeConfig = require("../../config/welcome.js")
-        welcomeConfig.welcomeChannelId = channel.id
-        const configContent = `module.exports = ${JSON.stringify(welcomeConfig, null, 2)}`
+        let configContent = fs.readFileSync(configPath, "utf8")
+        configContent = configContent.replace(/welcomeChannelId:\s*["'](.*)["']/, `welcomeChannelId: "${channel.id}"`)
         fs.writeFileSync(configPath, configContent)
         delete require.cache[require.resolve("../../config/welcome.js")]
         await interaction.reply({

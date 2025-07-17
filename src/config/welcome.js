@@ -1,11 +1,11 @@
 module.exports = {
   enabled: true,
-  title: "Welcome to {guildName}!",
+  title: "Welcome to LatifiMods!",
   description:
     "Hey {user}! Please choose your Role in {verify} to see all our Channels! 🟣\n\nCheck out our {rules} 📜. We have our own bot that is very sensitive to rule violations!\n If you have any questions, feel free to ask in {help}!\n Have fun on the Server! 💗",
   embedColor: "#5865F2",
-  bannerImage: "", // Replace with your banner URL
-  mentionUser: true,
+  bannerImage: "https://cdn.discordapp.com/attachments/1251990988835258439/1280208483517595701/LM_Banner_Nitro.gif?ex=68792a0f&is=6877d88f&hm=dbaf05891887264d43d9752247201f9b34737598980b484bbe90386a3b7e9434&", // Replace with your banner URL
+  mentionUser: false,
   
   // Rate limiting settings
   rateLimit: {
@@ -18,9 +18,9 @@ module.exports = {
     avatarAsImage: false, // Set to false to use thumbnail (right side) position
     createdAt: true,
     joinedAt: true,
-    memberCount: true,
-    accountAge: false,
-    userRoles: true,
+    memberCount: false,
+    accountAge: true,
+    userRoles: false,
     userBanner: false,
   },
   footerText: process.env.FOOTER_TEXT || "",

@@ -81,7 +81,7 @@ module.exports = {
     ),
   async execute(interaction) {
     try {
-      if (!interaction.member.permissions.has(PermissionFlagsBits.MANAGE_GUILD)) {
+      if (interaction.user.id !== process.env.ADMIN_ID) {
         return await interaction.reply({
           content: "❌ You don't have permission to use this command.",
           ephemeral: true,
@@ -91,7 +91,7 @@ module.exports = {
       if (subcommand === "channel") {
         const channel = interaction.options.getChannel("channel")
         const emoji = interaction.options.getString("emoji")
-        const success = autoReactModule.addChannelReaction(channel.id, emoji)
+        const success = await autoReactModule.addChannelReaction(channel.id, emoji)
         if (success) {
           return await interaction.reply({
             content: `✅ Successfully configured auto-reaction with ${emoji} for channel <#${channel.id}>`,
@@ -106,7 +106,7 @@ module.exports = {
       } else if (subcommand === "user") {
         const user = interaction.options.getUser("user")
         const emoji = interaction.options.getString("emoji")
-        const success = autoReactModule.addUserReaction(user.id, emoji)
+        const success = await autoReactModule.addUserReaction(user.id, emoji)
         if (success) {
           return await interaction.reply({
             content: `✅ Successfully configured auto-reaction with ${emoji} for user <@${user.id}>`,
@@ -121,7 +121,7 @@ module.exports = {
       } else if (subcommand === "keyword") {
         const keyword = interaction.options.getString("keyword").toLowerCase()
         const emoji = interaction.options.getString("emoji")
-        const success = autoReactModule.addKeywordReaction(keyword, emoji)
+        const success = await autoReactModule.addKeywordReaction(keyword, emoji)
         if (success) {
           return await interaction.reply({
             content: `✅ Successfully configured auto-reaction with ${emoji} for keyword "${keyword}"`,
@@ -140,13 +140,13 @@ module.exports = {
         let success = false
         let targetName = target
         if (type === "channel") {
-          success = autoReactModule.removeChannelReaction(target, emoji)
+          success = await autoReactModule.removeChannelReaction(target, emoji)
           targetName = `<#${target}>`
         } else if (type === "user") {
-          success = autoReactModule.removeUserReaction(target, emoji)
+          success = await autoReactModule.removeUserReaction(target, emoji)
           targetName = `<@${target}>`
         } else if (type === "keyword") {
-          success = autoReactModule.removeKeywordReaction(target, emoji)
+          success = await autoReactModule.removeKeywordReaction(target, emoji)
           targetName = `"${target}"`
         }
         if (success) {
@@ -198,7 +198,7 @@ module.exports = {
           const keywordFields = []
           for (const [keyword, emojis] of Object.entries(config.keywords)) {
             keywordFields.push({
-              name: `Keyword "${keyword}"`,
+              name: `Keyword: ${keyword}`,
               value: emojis.join(" ") || "No emojis configured",
               inline: false,
             })
@@ -209,33 +209,20 @@ module.exports = {
             embed.setDescription("No keyword reactions configured")
           }
         }
-        if (
-          type === "all" &&
-          Object.keys(config.channels).length === 0 &&
-          Object.keys(config.users).length === 0 &&
-          Object.keys(config.keywords).length === 0
-        ) {
-          embed.setDescription("No auto-reactions configured")
-        }
-        return await interaction.reply({
-          embeds: [embed],
-          ephemeral: true,
-        })
+        return await interaction.reply({ embeds: [embed], ephemeral: true })
       } else if (subcommand === "reload") {
-        autoReactModule.reloadConfig()
+        await autoReactModule.reloadConfig()
         return await interaction.reply({
-          content: "✅ Auto-react configuration reloaded successfully.",
+          content: "✅ Auto-react configuration reloaded from disk.",
           ephemeral: true,
         })
       }
     } catch (error) {
-      console.error("Error executing autoreact command:", error)
-      if (!interaction.replied && !interaction.deferred) {
-        return await interaction.reply({
-          content: "❌ An error occurred while executing this command.",
-          ephemeral: true,
-        })
-      }
+      console.error("Error in /autoreact command:", error)
+      return await interaction.reply({
+        content: "❌ An error occurred while processing the command.",
+        ephemeral: true,
+      })
     }
   },
 }

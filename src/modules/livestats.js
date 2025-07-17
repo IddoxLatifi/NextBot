@@ -17,6 +17,9 @@ async function fetchStats(guild) {
   const created = `<t:${Math.floor(guild.createdTimestamp / 1000)}:F>`
   const owner = `<@${guild.ownerId}>`
   const time = livestatsConfig.hammertimeFormat.replace('{timestamp}', Math.floor(Date.now() / 1000))
+  const invites = (await guild.invites.fetch().catch(() => []))?.size || 0
+  const forumchannels = guild.channels.cache.filter(c => c.type === 15).size
+  const categories = guild.channels.cache.filter(c => c.type === 4).size
   return {
     members: members.size,
     bots,
@@ -26,11 +29,14 @@ async function fetchStats(guild) {
     textchannels,
     voicechannels,
     roles,
-    emojis,
-    banner,
     created,
     owner,
+    banner,
+    emojis,
     time,
+    invites,
+    forumchannels,
+    categories,
   }
 }
 function buildEmbed(stats, guild) {

@@ -131,8 +131,6 @@ module.exports = {
         iconURL: iconURL,
       })
     }
-
-    // Only send and auto-delete if deleteDelay is greater than 0
     if (afkConfig.deleteDelay > 0) {
       await MessageUtils.sendTemporaryMessage(message, {
         content: { embeds: [embed] },
@@ -141,7 +139,6 @@ module.exports = {
     } else {
       await message.channel.send({ embeds: [embed] })
     }
-
     try {
       if (message.member && message.member.manageable) {
         const currentNick = message.member.nickname
@@ -203,7 +200,6 @@ module.exports = {
     }
   },
   /**
-   * Handle message for AFK system
    * @param {Message} message - Discord message
    * @param {Client} client - Discord client
    */
@@ -238,8 +234,6 @@ module.exports = {
               iconURL: iconURL,
             })
           }
-
-          // Only send and auto-delete if deleteDelay is greater than 0
           if (afkConfig.deleteDelay > 0) {
             await MessageUtils.sendTemporaryMessage(message, {
               content: { embeds: [embed] },
@@ -253,9 +247,8 @@ module.exports = {
     }
   },
   /**
-   * Get time since timestamp in human readable format
-   * @param {number} timestamp - Timestamp in milliseconds
-   * @returns {string} - Human readable time
+   * @param {number} timestamp 
+   * @returns {string}
    */
   getTimeSince(timestamp) {
     const seconds = Math.floor((Date.now() - timestamp) / 1000)

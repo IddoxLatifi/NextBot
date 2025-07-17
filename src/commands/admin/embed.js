@@ -1,6 +1,7 @@
 const _createdBy = '@apt_start_latifi | https://nextbot.store/ | https://discord.gg/KcuMUUAP5T';
 const {SlashCommandBuilder,PermissionFlagsBits,ActionRowBuilder,ButtonBuilder,ButtonStyle,ChannelType,StringSelectMenuBuilder,ModalBuilder,TextInputBuilder,TextInputStyle,EmbedBuilder,} = 
 require("discord.js")
+const stickymessageModule = require("../../modules/stickymessage")
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("embed")
@@ -11,7 +12,8 @@ module.exports = {
     adminOnly: false,
   },
   cooldown: 10,
-  async execute(interaction, client) {
+  async execute(interaction, client, options = {}) {
+    const stickyMode = options.stickyMode || false
     const embedsData = [
       {
         title: "Embed Title",
@@ -517,6 +519,35 @@ module.exports = {
           await i.showModal(editFieldModal)
           break
         case "embed_send":
+          if (stickyMode) {
+            // Prompt for channel selection
+            const channelSelectRow = new ActionRowBuilder().addComponents(
+              new StringSelectMenuBuilder()
+                .setCustomId("sticky_select_channel")
+                .setPlaceholder("Select a channel for the sticky embed")
+                .addOptions(
+                  interaction.guild.channels.cache
+                    .filter((c) => c.isTextBased() && c.viewable && c.type === ChannelType.GuildText)
+                    .map((c) => ({ label: c.name, value: c.id }))
+                )
+            )
+            await i.update({
+              content: "Select the channel where the sticky embed should be set:",
+              embeds: [],
+              components: [channelSelectRow],
+              ephemeral: true,
+            })
+            // Wait for channel selection
+            const filter = (selectInt) => selectInt.user.id === interaction.user.id && selectInt.customId === "sticky_select_channel"
+            const selectCollector = i.channel.createMessageComponentCollector({ filter, time: 60000, max: 1 })
+            selectCollector.on("collect", async (selectInt) => {
+              await selectInt.deferUpdate()
+              const channelId = selectInt.values[0]
+              stickymessageModule.setSticky(channelId, embedsData[currentEmbedIndex])
+              await interaction.followUp({ content: `✅ Sticky embed has been set for <#${channelId}>!`, ephemeral: true })
+            })
+            return
+          }
           const targetChannel = selectedChannelId
             ? interaction.guild.channels.cache.get(selectedChannelId)
             : interaction.channel

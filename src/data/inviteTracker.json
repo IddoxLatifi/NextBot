@@ -1,0 +1,552 @@
+{
+  "trackingChannelId": "1261360215832399993",
+  "invites": {
+    "1149686585894379560": {
+      "5wYaW55EQE": {
+        "code": "5wYaW55EQE",
+        "uses": 0,
+        "maxUses": 0,
+        "creator": {
+          "id": "876086749711970304",
+          "tag": "apt_start_latifi"
+        },
+        "channel": {
+          "id": "1252672754692653066",
+          "name": "🎰╚giveaway"
+        },
+        "createdAt": "2024-06-24T20:55:13.124Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "AuG9bGUUmB": {
+        "code": "AuG9bGUUmB",
+        "uses": 0,
+        "maxUses": 0,
+        "creator": {
+          "id": "1242848945659576443",
+          "tag": "swapz1739"
+        },
+        "channel": {
+          "id": "1149686586733248605",
+          "name": "👋╔welcome"
+        },
+        "createdAt": "2024-07-13T10:12:09.464Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "Bd8s8xkd": {
+        "code": "Bd8s8xkd",
+        "uses": 1,
+        "maxUses": 0,
+        "creator": {
+          "id": "1362809254993723584",
+          "tag": "mindever1"
+        },
+        "channel": {
+          "id": "1149686586733248605",
+          "name": "👋╔welcome"
+        },
+        "createdAt": "2025-07-11T15:45:16.122Z",
+        "expiresAt": "2025-07-18T15:45:16.000Z",
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "BwcF5EUCJx": {
+        "code": "BwcF5EUCJx",
+        "uses": 6,
+        "maxUses": 0,
+        "creator": {
+          "id": "791669483172921375",
+          "tag": "juliantylor"
+        },
+        "channel": {
+          "id": "1149686586733248605",
+          "name": "👋╔welcome"
+        },
+        "createdAt": "2025-03-08T20:13:25.507Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "BzCKg3yPYF": {
+        "code": "BzCKg3yPYF",
+        "uses": 0,
+        "maxUses": 0,
+        "creator": {
+          "id": "876086749711970304",
+          "tag": "apt_start_latifi"
+        },
+        "channel": {
+          "id": "1303801388760825866",
+          "name": "🌌╠all-redux"
+        },
+        "createdAt": "2024-11-09T11:39:47.363Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "CDjvk8unbe": {
+        "code": "CDjvk8unbe",
+        "uses": 2,
+        "maxUses": 0,
+        "creator": {
+          "id": "1256602897551069244",
+          "tag": "miki.escobarr"
+        },
+        "channel": {
+          "id": "1149686586733248605",
+          "name": "👋╔welcome"
+        },
+        "createdAt": "2025-01-06T12:36:37.142Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "DBjBEWHH": {
+        "code": "DBjBEWHH",
+        "uses": 1,
+        "maxUses": 0,
+        "creator": {
+          "id": "1176852866707750984",
+          "tag": "ajayyt10"
+        },
+        "channel": {
+          "id": "1149686586733248605",
+          "name": "👋╔welcome"
+        },
+        "createdAt": "2025-07-16T11:14:51.101Z",
+        "expiresAt": "2025-07-23T11:14:51.000Z",
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "DTwmqmCaPt": {
+        "code": "DTwmqmCaPt",
+        "uses": 0,
+        "maxUses": 0,
+        "creator": {
+          "id": "876086749711970304",
+          "tag": "apt_start_latifi"
+        },
+        "channel": {
+          "id": "1149686586733248605",
+          "name": "👋╔welcome"
+        },
+        "createdAt": "2024-06-22T07:07:44.441Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "ENft9PWB24": {
+        "code": "ENft9PWB24",
+        "uses": 0,
+        "maxUses": 0,
+        "creator": {
+          "id": "665304216025169951",
+          "tag": "lars.akeno"
+        },
+        "channel": {
+          "id": "1297675671899865108",
+          "name": "📂modding-tools"
+        },
+        "createdAt": "2025-06-20T13:23:59.854Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "ERZvP7yZZJ": {
+        "code": "ERZvP7yZZJ",
+        "uses": 0,
+        "maxUses": 0,
+        "creator": {
+          "id": "1260298188519243950",
+          "tag": "eko57"
+        },
+        "channel": {
+          "id": "1149686586733248605",
+          "name": "👋╔welcome"
+        },
+        "createdAt": "2025-05-23T19:19:48.498Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "KcuMUUAP5T": {
+        "code": "KcuMUUAP5T",
+        "uses": 1117,
+        "maxUses": 0,
+        "creator": {
+          "id": "876086749711970304",
+          "tag": "apt_start_latifi"
+        },
+        "channel": {
+          "id": "1149738704768868482",
+          "name": "✅╠verify"
+        },
+        "createdAt": "2024-06-22T09:25:16.421Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "M5pRmtbAqF": {
+        "code": "M5pRmtbAqF",
+        "uses": 0,
+        "maxUses": 0,
+        "creator": {
+          "id": "1217164335210696846",
+          "tag": "tombalaks"
+        },
+        "channel": {
+          "id": "1149686586733248605",
+          "name": "👋╔welcome"
+        },
+        "createdAt": "2024-06-25T09:12:43.373Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "PcyRewjCyB": {
+        "code": "PcyRewjCyB",
+        "uses": 0,
+        "maxUses": 0,
+        "creator": {
+          "id": "1223755135302373446",
+          "tag": "zyron_is_back"
+        },
+        "channel": {
+          "id": "1149686586733248605",
+          "name": "👋╔welcome"
+        },
+        "createdAt": "2025-02-01T08:47:23.314Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "PpfPQq6WKJ": {
+        "code": "PpfPQq6WKJ",
+        "uses": 0,
+        "maxUses": 0,
+        "creator": {
+          "id": "1295850343896449036",
+          "tag": "misterspecks"
+        },
+        "channel": {
+          "id": "1149686586733248605",
+          "name": "👋╔welcome"
+        },
+        "createdAt": "2025-06-05T09:16:35.377Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "QbKPxsYf7e": {
+        "code": "QbKPxsYf7e",
+        "uses": 0,
+        "maxUses": 0,
+        "creator": {
+          "id": "851312268662407198",
+          "tag": "thanderbold"
+        },
+        "channel": {
+          "id": "1252691672006000731",
+          "name": "🧙super-bullet"
+        },
+        "createdAt": "2025-06-04T12:29:41.366Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "V8TeBbw8Sy": {
+        "code": "V8TeBbw8Sy",
+        "uses": 0,
+        "maxUses": 0,
+        "creator": {
+          "id": "1262370738015305769",
+          "tag": "deleted_user_9219cdb6ca16"
+        },
+        "channel": {
+          "id": "1252690166586277992",
+          "name": "🧞stw"
+        },
+        "createdAt": "2024-07-15T13:12:39.039Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "YdbduUwmvx": {
+        "code": "YdbduUwmvx",
+        "uses": 13,
+        "maxUses": 0,
+        "creator": {
+          "id": "612975663414116353",
+          "tag": "322ae2122"
+        },
+        "channel": {
+          "id": "1251923123373211781",
+          "name": "🗁╚others"
+        },
+        "createdAt": "2024-06-29T19:47:44.528Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "eS8upzGCgF": {
+        "code": "eS8upzGCgF",
+        "uses": 0,
+        "maxUses": 0,
+        "creator": {
+          "id": "1330525533049458722",
+          "tag": "michi321._"
+        },
+        "channel": {
+          "id": "1277003322062143518",
+          "name": "📕╠rules"
+        },
+        "createdAt": "2025-06-30T08:00:21.034Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "f2ywv9jrHr": {
+        "code": "f2ywv9jrHr",
+        "uses": 1,
+        "maxUses": 0,
+        "creator": {
+          "id": "236214767969107969",
+          "tag": "zyem1337"
+        },
+        "channel": {
+          "id": "1149686586733248605",
+          "name": "👋╔welcome"
+        },
+        "createdAt": "2024-07-19T06:41:29.297Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "mdW5Ayz9Vm": {
+        "code": "mdW5Ayz9Vm",
+        "uses": 1,
+        "maxUses": 0,
+        "creator": {
+          "id": "453263164943892480",
+          "tag": "azo66"
+        },
+        "channel": {
+          "id": "1149686586733248605",
+          "name": "👋╔welcome"
+        },
+        "createdAt": "2024-12-30T22:45:43.998Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "pJXEcMsjGE": {
+        "code": "pJXEcMsjGE",
+        "uses": 2,
+        "maxUses": 0,
+        "creator": {
+          "id": "789991929306808371",
+          "tag": "aiml3ss420"
+        },
+        "channel": {
+          "id": "1149686586733248605",
+          "name": "👋╔welcome"
+        },
+        "createdAt": "2025-04-29T13:32:24.580Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "pdYtAKeZmf": {
+        "code": "pdYtAKeZmf",
+        "uses": 0,
+        "maxUses": 0,
+        "creator": {
+          "id": "950987011160957028",
+          "tag": "oh5q_"
+        },
+        "channel": {
+          "id": "1149686586733248605",
+          "name": "👋╔welcome"
+        },
+        "createdAt": "2025-06-21T15:23:02.062Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "ptXdjfZp": {
+        "code": "ptXdjfZp",
+        "uses": 0,
+        "maxUses": 0,
+        "creator": {
+          "id": "828027003285667840",
+          "tag": "mix24313"
+        },
+        "channel": {
+          "id": "1149686586733248605",
+          "name": "👋╔welcome"
+        },
+        "createdAt": "2025-07-13T12:32:09.223Z",
+        "expiresAt": "2025-07-20T12:32:09.000Z",
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "rTPAamneyY": {
+        "code": "rTPAamneyY",
+        "uses": 2,
+        "maxUses": 0,
+        "creator": {
+          "id": "550346680898289726",
+          "tag": "s_o_m_a_y"
+        },
+        "channel": {
+          "id": "1149686586733248605",
+          "name": "👋╔welcome"
+        },
+        "createdAt": "2025-03-11T08:21:36.982Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "sezQvxd4HR": {
+        "code": "sezQvxd4HR",
+        "uses": 0,
+        "maxUses": 0,
+        "creator": {
+          "id": "876086749711970304",
+          "tag": "apt_start_latifi"
+        },
+        "channel": {
+          "id": "1149738704768868482",
+          "name": "✅╠verify"
+        },
+        "createdAt": "2024-06-22T07:06:36.016Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "tS8hJrra": {
+        "code": "tS8hJrra",
+        "uses": 1,
+        "maxUses": 0,
+        "creator": {
+          "id": "569942721716944933",
+          "tag": "a.rthur_morgan"
+        },
+        "channel": {
+          "id": "1149686586733248605",
+          "name": "👋╔welcome"
+        },
+        "createdAt": "2025-07-14T08:36:17.529Z",
+        "expiresAt": "2025-07-21T08:36:17.000Z",
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "w4JmAkDs7n": {
+        "code": "w4JmAkDs7n",
+        "uses": 0,
+        "maxUses": 0,
+        "creator": {
+          "id": "720496810011000855",
+          "tag": "contactbell42"
+        },
+        "channel": {
+          "id": "1149686586733248605",
+          "name": "👋╔welcome"
+        },
+        "createdAt": "2025-06-05T12:08:01.862Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "w9zfb23jNP": {
+        "code": "w9zfb23jNP",
+        "uses": 0,
+        "maxUses": 0,
+        "creator": {
+          "id": "1229127903061741721",
+          "tag": "171kz"
+        },
+        "channel": {
+          "id": "1149686586733248605",
+          "name": "👋╔welcome"
+        },
+        "createdAt": "2025-03-14T17:13:44.987Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "x8xWE6KVr4": {
+        "code": "x8xWE6KVr4",
+        "uses": 23,
+        "maxUses": 0,
+        "creator": {
+          "id": "665304216025169951",
+          "tag": "lars.akeno"
+        },
+        "channel": {
+          "id": "1149686586733248605",
+          "name": "👋╔welcome"
+        },
+        "createdAt": "2025-06-20T19:59:46.501Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "xXKCW5MTYQ": {
+        "code": "xXKCW5MTYQ",
+        "uses": 1,
+        "maxUses": 0,
+        "creator": {
+          "id": "1255859966980653176",
+          "tag": "sudokiller009"
+        },
+        "channel": {
+          "id": "1252672754692653066",
+          "name": "🎰╚giveaway"
+        },
+        "createdAt": "2025-01-05T11:34:45.329Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "yRyB4c777S": {
+        "code": "yRyB4c777S",
+        "uses": 1,
+        "maxUses": 0,
+        "creator": {
+          "id": "1294043908010934383",
+          "tag": "xdorijan340"
+        },
+        "channel": {
+          "id": "1149686586733248605",
+          "name": "👋╔welcome"
+        },
+        "createdAt": "2025-02-09T19:45:26.136Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      },
+      "yUkzDjgnh6": {
+        "code": "yUkzDjgnh6",
+        "uses": 1,
+        "maxUses": 0,
+        "creator": {
+          "id": "1219746058486153236",
+          "tag": "luka_joe"
+        },
+        "channel": {
+          "id": "1149686586733248605",
+          "name": "👋╔welcome"
+        },
+        "createdAt": "2025-02-02T18:36:44.127Z",
+        "expiresAt": null,
+        "activeMembers": [],
+        "leftMembers": []
+      }
+    }
+  },
+  "memberJoinData": {}
+}

@@ -1,5 +1,5 @@
 module.exports = {
-  enabled: true,
+  enabled: false,
   channelId: "", // Wird vom /livestats Command gesetzt
   updateInterval: 180000, // 3 Minuten in ms
   embed: {
@@ -59,6 +59,24 @@ module.exports = {
         enabled: true,
       },
       {
+        name: "🔗 Invites",
+        key: "invites",
+        inline: true,
+        enabled: true,
+      },
+      {
+        name: "💬 Forum-Channels",
+        key: "forumchannels",
+        inline: true,
+        enabled: true,
+      },
+      {
+        name: "🗂️ Categories",
+        key: "categories",
+        inline: true,
+        enabled: true,
+      },
+      {
         name: "📅 Created",
         key: "created",
         inline: true,
@@ -90,5 +108,5 @@ module.exports = {
       },
     ],
   },
-  hammertimeFormat: "<t:{timestamp}:T>", // Discord Hammertime für Uhrzeit
+  hammertimeFormat: "<t:{timestamp}:f>", // Discord Hammertime für Uhrzeit
 } 

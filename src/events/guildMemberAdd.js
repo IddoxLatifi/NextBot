@@ -3,6 +3,12 @@ module.exports = {
   once: false,
   async execute(member, client) {
     try {
+      const inviteTracker = require("../modules/inviteTracker")
+      await inviteTracker.trackMemberJoin(member, client)
+    } catch (error) {
+      console.error("Error in InviteTracker module:", error)
+    }
+    try {
       const welcomeModule = require("../modules/welcome")
       await welcomeModule.handleMemberJoin(member, client)
     } catch (error) {

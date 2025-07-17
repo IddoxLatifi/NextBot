@@ -55,37 +55,51 @@ module.exports = {
     .addSubcommand((subcommand) =>
       subcommand.setName("leaderboard").setDescription("Shows the top inviters in the server"),
     )
-    // Füge eine Funktion hinzu, um den Einladungs-Cache manuell zu aktualisieren
     .addSubcommand((subcommand) =>
       subcommand.setName("refresh").setDescription("Manually refresh the invite cache for all guilds"),
     ),
   permissions: {
-    user: [], // No permissions required for basic commands
+    user: [], 
     bot: [PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks],
     adminOnly: false,
   },
   cooldown: 5,
   async execute(interaction, client) {
     const subcommand = interaction.options.getSubcommand()
-
     function extractInviteCode(input) {
       const regex = /(discord\.gg\/|discordapp\.com\/invite\/|discord\.com\/invite\/)?([a-zA-Z0-9-]+)/i
       const match = input.match(regex)
       return match ? match[2] : input
     }
-
-    // Check if user has admin permissions for restricted commands
+    // --- Add reusable function for building invite fields ---
+    function buildInviteFields(invites, client, startIndex) {
+      const fields = []
+      for (let i = 0; i < invites.length; i++) {
+        const invite = invites[i]
+        const guild = client.guilds.cache.get(invite.guildId)
+        const guildName = guild ? guild.name : "Unknown Server"
+        let value = `**Code:** \`${invite.code}\`\n`
+        value += `**Server:** ${guildName}\n`
+        value += `**Channel:** <#${invite.channel.id}>\n`
+        value += `**Creator:** ${invite.creator ? `<@${invite.creator.id}>` : "Unknown"}\n`
+        value += `**Uses:** ${invite.uses}${invite.maxUses ? `/${invite.maxUses}` : ""}\n`
+        value += `**Created:** <t:${Math.floor(new Date(invite.createdAt).getTime() / 1000)}:R>`
+        fields.push({
+          name: `Invite #${startIndex + i + 1}`,
+          value,
+          inline: true,
+        })
+      }
+      return fields
+    }
     const hasAdminPerms = interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)
-
     if (subcommand === "set") {
-      // Only admins can set the tracking channel
       if (!hasAdminPerms) {
         return interaction.reply({
           content: "You don't have permission to use this command. You need the 'Manage Server' permission.",
           ephemeral: true,
         })
       }
-
       const channel = interaction.options.getChannel("channel")
       if (channel.type !== ChannelType.GuildText) {
         return interaction.reply({
@@ -99,17 +113,14 @@ module.exports = {
         ephemeral: true,
       })
     } else if (subcommand === "verify") {
-      // Only admins can verify member status
       if (!hasAdminPerms) {
         return interaction.reply({
           content: "You don't have permission to use this command. You need the 'Manage Server' permission.",
           ephemeral: true,
         })
       }
-
       await interaction.deferReply()
       const updatedCount = await inviteTracker.verifyMemberStatus(client)
-
       return interaction.editReply({
         content:
           updatedCount > 0
@@ -120,17 +131,9 @@ module.exports = {
     } else if (subcommand === "list") {
       const page = interaction.options.getInteger("page") || 1
       const pageSize = 10
-
-      // Refresh invites before listing
       await interaction.deferReply()
-
-      // Verify member status first
       await inviteTracker.verifyMemberStatus(client)
-
-      // Aktualisiere den Einladungs-Cache
       await inviteTracker.refreshInvitesCache(client)
-
-      // Get all invites
       const allInvites = inviteTracker.getAllInvites()
       if (allInvites.length === 0) {
         return interaction.editReply({
@@ -138,36 +141,20 @@ module.exports = {
           ephemeral: true,
         })
       }
-
       allInvites.sort((a, b) => b.uses - a.uses)
       const totalPages = Math.ceil(allInvites.length / pageSize)
       const validPage = Math.max(1, Math.min(page, totalPages))
       const startIndex = (validPage - 1) * pageSize
       const endIndex = Math.min(startIndex + pageSize, allInvites.length)
       const displayInvites = allInvites.slice(startIndex, endIndex)
-
       const embed = new EmbedBuilder()
         .setColor(inviteTracker.config.embedColors.info)
         .setTitle("📊 Tracked Invites")
         .setFooter({ text: `Page ${validPage} of ${totalPages}` })
         .setTimestamp()
-
-      let description = `Total ${allInvites.length} invites found.\n\n`
-      for (let i = 0; i < displayInvites.length; i++) {
-        const invite = displayInvites[i]
-        const guild = client.guilds.cache.get(invite.guildId)
-        const guildName = guild ? guild.name : "Unknown Server"
-
-        description += `**${i + 1}. Invite code: \`${invite.code}\`**\n`
-        description += `Server: ${guildName}\n`
-        description += `Channel: <#${invite.channel.id}>\n`
-        description += `Creator: ${invite.creator ? `<@${invite.creator.id}> (${invite.activeCount}/${invite.uses} active invites)` : "Unknown"}\n`
-        description += `Uses: ${invite.uses}${invite.maxUses ? `/${invite.maxUses}` : ""}\n`
-        description += `Created: <t:${Math.floor(new Date(invite.createdAt).getTime() / 1000)}:R>\n\n`
-      }
-
-      embed.setDescription(description)
-
+      // Build fields: 2 invites per row
+      const fields = buildInviteFields(displayInvites, client, startIndex)
+      embed.addFields(fields)
       const navigationRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId(`traceinvite_prev_${validPage}`)
@@ -180,10 +167,7 @@ module.exports = {
           .setStyle(ButtonStyle.Primary)
           .setDisabled(validPage >= totalPages),
       )
-
-      // Only add delete buttons if user has admin permissions
       const allRows = [navigationRow]
-
       if (hasAdminPerms) {
         const deleteRows = []
         for (let i = 0; i < displayInvites.length; i += 5) {
@@ -200,52 +184,32 @@ module.exports = {
         }
         allRows.push(...deleteRows)
       }
-
       const response = await interaction.editReply({
         embeds: [embed],
         components: allRows,
         ephemeral: false,
       })
-
       const collector = response.createMessageComponentCollector({
         time: 300000, // 5 minutes timeout
       })
-
       collector.on("collect", async (i) => {
         if (i.user.id !== interaction.user.id) {
           return i.reply({ content: "You cannot use these buttons.", ephemeral: true })
         }
-
         const [action, type, value] = i.customId.split("_")
-
         if (type === "prev" || type === "next") {
           const currentPage = Number.parseInt(value)
           const newPage = type === "prev" ? currentPage - 1 : currentPage + 1
           const newStartIndex = (newPage - 1) * pageSize
           const newEndIndex = Math.min(newStartIndex + pageSize, allInvites.length)
           const newDisplayInvites = allInvites.slice(newStartIndex, newEndIndex)
-
-          let newDescription = `Total ${allInvites.length} invites found.\n\n`
-          for (let i = 0; i < newDisplayInvites.length; i++) {
-            const invite = newDisplayInvites[i]
-            const guild = client.guilds.cache.get(invite.guildId)
-            const guildName = guild ? guild.name : "Unknown Server"
-
-            newDescription += `**${i + 1}. Invite code: \`${invite.code}\`**\n`
-            newDescription += `Server: ${guildName}\n`
-            newDescription += `Channel: <#${invite.channel.id}>\n`
-            newDescription += `Creator: ${invite.creator ? `<@${invite.creator.id}> (${invite.activeCount}/${invite.uses} active invites)` : "Unknown"}\n`
-            newDescription += `Uses: ${invite.uses}${invite.maxUses ? `/${invite.maxUses}` : ""}\n`
-            newDescription += `Created: <t:${Math.floor(new Date(invite.createdAt).getTime() / 1000)}:R>\n\n`
-          }
-
           const newEmbed = new EmbedBuilder()
             .setColor(inviteTracker.config.embedColors.info)
             .setTitle("📊 Tracked Invites")
-            .setDescription(newDescription)
             .setFooter({ text: `Page ${newPage} of ${totalPages}` })
             .setTimestamp()
-
+          const newFields = buildInviteFields(newDisplayInvites, client, newStartIndex)
+          newEmbed.addFields(newFields)
           const newNavigationRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
               .setCustomId(`traceinvite_prev_${newPage}`)
@@ -258,9 +222,7 @@ module.exports = {
               .setStyle(ButtonStyle.Primary)
               .setDisabled(newPage >= totalPages),
           )
-
           const newAllRows = [newNavigationRow]
-
           if (hasAdminPerms) {
             const newDeleteRows = []
             for (let i = 0; i < newDisplayInvites.length; i += 5) {
@@ -277,40 +239,31 @@ module.exports = {
             }
             newAllRows.push(...newDeleteRows)
           }
-
           await i.update({
             embeds: [newEmbed],
             components: newAllRows,
           })
         } else if (type === "delete") {
-          // Check if user has admin permissions for deletion
           if (!hasAdminPerms) {
             return i.reply({
               content: "You don't have permission to delete invites. You need the 'Manage Server' permission.",
               ephemeral: true,
             })
           }
-
           const inviteCode = value
           await i.deferUpdate({ ephemeral: true })
-
           try {
             console.log(`User ${i.user.tag} (${i.user.id}) is attempting to delete invite: ${inviteCode}`)
             const success = await inviteTracker.deleteInvite(client, inviteCode)
-
             if (success) {
-              // Get updated invites after deletion
               const updatedInvites = inviteTracker.getAllInvites()
               updatedInvites.sort((a, b) => b.uses - a.uses)
-
               const totalPages = Math.ceil(updatedInvites.length / pageSize)
               const validPage = Math.max(1, Math.min(page, totalPages || 1))
               const startIndex = (validPage - 1) * pageSize
               const endIndex = Math.min(startIndex + pageSize, updatedInvites.length)
               const displayInvites = updatedInvites.slice(startIndex, endIndex)
-
               let newDescription = `Total ${updatedInvites.length} invites found.\n\n`
-
               if (displayInvites.length === 0) {
                 newDescription += "No invites to display on this page."
               } else {
@@ -318,7 +271,6 @@ module.exports = {
                   const invite = displayInvites[i]
                   const guild = client.guilds.cache.get(invite.guildId)
                   const guildName = guild ? guild.name : "Unknown Server"
-
                   newDescription += `**${i + 1}. Invite code: \`${invite.code}\`**\n`
                   newDescription += `Server: ${guildName}\n`
                   newDescription += `Channel: <#${invite.channel.id}>\n`
@@ -327,14 +279,12 @@ module.exports = {
                   newDescription += `Created: <t:${Math.floor(new Date(invite.createdAt).getTime() / 1000)}:R>\n\n`
                 }
               }
-
               const newEmbed = new EmbedBuilder()
                 .setColor(inviteTracker.config.embedColors.info)
                 .setTitle("📊 Tracked Invites")
                 .setDescription(newDescription)
                 .setFooter({ text: `Page ${validPage} of ${totalPages || 1}` })
                 .setTimestamp()
-
               const newNavigationRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                   .setCustomId(`traceinvite_prev_${validPage}`)
@@ -347,9 +297,7 @@ module.exports = {
                   .setStyle(ButtonStyle.Primary)
                   .setDisabled(validPage >= totalPages || validPage >= 1),
               )
-
               const newAllRows = [newNavigationRow]
-
               if (displayInvites.length > 0) {
                 const newDeleteRows = []
                 for (let i = 0; i < displayInvites.length; i += 5) {
@@ -366,12 +314,10 @@ module.exports = {
                 }
                 newAllRows.push(...newDeleteRows)
               }
-
               await i.editReply({
                 embeds: [newEmbed],
                 components: newAllRows,
               })
-
               await i.followUp({
                 content: `The invite with code \`${inviteCode}\` has been successfully deleted.`,
                 ephemeral: true,
@@ -391,7 +337,6 @@ module.exports = {
           }
         }
       })
-
       collector.on("end", () => {
         const disabledNavigationRow = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
@@ -405,9 +350,7 @@ module.exports = {
             .setStyle(ButtonStyle.Primary)
             .setDisabled(true),
         )
-
         const disabledAllRows = [disabledNavigationRow]
-
         if (hasAdminPerms && displayInvites.length > 0) {
           const disabledDeleteRows = []
           for (let i = 0; i < displayInvites.length; i += 5) {
@@ -435,24 +378,16 @@ module.exports = {
     } else if (subcommand === "info") {
       const inviteInput = interaction.options.getString("code")
       const inviteCode = extractInviteCode(inviteInput)
-
       await interaction.deferReply()
-
-      // Verify member status first
       await inviteTracker.verifyMemberStatus(client)
-
-      // Aktualisiere den Einladungs-Cache
       await inviteTracker.refreshInvitesCache(client)
-
       const inviteInfo = await inviteTracker.getInviteInfo(client, inviteCode)
-
       if (!inviteInfo) {
         return interaction.editReply({
           content: `No information found for the invite with code \`${inviteCode}\`.`,
           ephemeral: true,
         })
       }
-
       const embed = new EmbedBuilder()
         .setColor(inviteTracker.config.embedColors.info)
         .setTitle(`${inviteTracker.config.embedTitles.info}: ${inviteCode}`)
@@ -468,15 +403,12 @@ module.exports = {
               : ""),
         )
         .setTimestamp()
-
       if (inviteTracker.config.embed.footer) {
         embed.setFooter({
           text: inviteTracker.config.embed.footer,
           iconURL: inviteTracker.config.embed.footerIconUrl,
         })
       }
-
-      // Only add delete button if user has admin permissions
       const components = []
       if (hasAdminPerms) {
         const row = new ActionRowBuilder().addComponents(
@@ -487,7 +419,6 @@ module.exports = {
         )
         components.push(row)
       }
-
       const response = await interaction.editReply({
         embeds: [embed],
         components: components,
@@ -498,21 +429,16 @@ module.exports = {
         const collector = response.createMessageComponentCollector({
           time: 60000, // 1 minute timeout
         })
-
         collector.on("collect", async (i) => {
           if (i.user.id !== interaction.user.id) {
             return i.reply({ content: "You cannot use this button.", ephemeral: true })
           }
-
           const [action, type, info, code] = i.customId.split("_")
-
           if (type === "delete" && info === "info") {
             await i.deferUpdate({ ephemeral: true })
-
             try {
               console.log(`User ${i.user.tag} (${i.user.id}) is attempting to delete invite from info view: ${code}`)
               const success = await inviteTracker.deleteInvite(client, code)
-
               if (success) {
                 const disabledRow = new ActionRowBuilder().addComponents(
                   new ButtonBuilder()
@@ -521,11 +447,9 @@ module.exports = {
                     .setStyle(ButtonStyle.Danger)
                     .setDisabled(true),
                 )
-
                 await i.editReply({
                   components: [disabledRow],
                 })
-
                 await i.followUp({
                   content: `The invite with code \`${code}\` has been successfully deleted.`,
                   ephemeral: true,
@@ -545,7 +469,6 @@ module.exports = {
             }
           }
         })
-
         collector.on("end", () => {
           const disabledRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -554,7 +477,6 @@ module.exports = {
               .setStyle(ButtonStyle.Danger)
               .setDisabled(true),
           )
-
           interaction
             .editReply({
               components: [disabledRow],
@@ -565,28 +487,20 @@ module.exports = {
     } else if (subcommand === "user") {
       const targetUser = interaction.options.getUser("user") || interaction.user
       await interaction.deferReply()
-
-      // Verify member status first
       await inviteTracker.verifyMemberStatus(client)
-
-      // Aktualisiere den Einladungs-Cache
       await inviteTracker.refreshInvitesCache(client)
-
       const userInvites = inviteTracker.getUserInvites(targetUser.id)
-
       const embed = new EmbedBuilder()
         .setColor(inviteTracker.config.embedColors.info)
         .setTitle(`Invite Statistics for ${targetUser.tag}`)
         .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
         .setTimestamp()
-
       if (inviteTracker.config.embed.footer) {
         embed.setFooter({
           text: inviteTracker.config.embed.footer,
           iconURL: inviteTracker.config.embed.footerIconUrl,
         })
       }
-
       if (!userInvites || userInvites.invites.length === 0) {
         embed.setDescription(`${targetUser} has no tracked invites.`)
       } else {
@@ -596,18 +510,15 @@ module.exports = {
             `• **${userInvites.leftCount}** members have left the server\n\n` +
             `**Active Invites:** ${userInvites.invites.length}`,
         )
-
         let invitesList = ""
         userInvites.invites.slice(0, 10).forEach((invite, index) => {
           invitesList +=
             `**${index + 1}.** \`${invite.code}\` - ${invite.uses} uses ` +
             `(${invite.activeCount}/${invite.uses} active)\n`
         })
-
         if (invitesList) {
           embed.addFields({ name: "Top Invites", value: invitesList })
         }
-
         if (userInvites.invites.length > 10) {
           embed.addFields({
             name: "Note",
@@ -621,16 +532,9 @@ module.exports = {
       })
     } else if (subcommand === "leaderboard") {
       await interaction.deferReply()
-
-      // Verify member status first
       await inviteTracker.verifyMemberStatus(client)
-
-      // Get all invites
       const allInvites = inviteTracker.getAllInvites()
-
-      // Group invites by creator
       const inviterStats = new Map()
-
       allInvites.forEach((invite) => {
         if (invite.creator) {
           const creatorId = invite.creator.id
@@ -644,7 +548,6 @@ module.exports = {
               invites: [],
             })
           }
-
           const stats = inviterStats.get(creatorId)
           stats.totalUses += invite.uses
           stats.activeCount += invite.activeCount
@@ -652,43 +555,32 @@ module.exports = {
           stats.invites.push(invite)
         }
       })
-
-      // Convert to array and sort by total uses
       const sortedInviters = [...inviterStats.values()].sort((a, b) => b.totalUses - a.totalUses).slice(0, 10) // Top 10
-
       const embed = new EmbedBuilder()
         .setColor(inviteTracker.config.embedColors.info)
         .setTitle("🏆 Invite Leaderboard")
         .setTimestamp()
-
       if (sortedInviters.length === 0) {
         embed.setDescription("No invite data found.")
       } else {
         let description = ""
-
         sortedInviters.forEach((inviter, index) => {
           description += `**${index + 1}.** <@${inviter.id}> - ${inviter.totalUses} invites (${inviter.activeCount}/${inviter.totalUses} active)\n`
         })
-
         embed.setDescription(description)
       }
-
       await interaction.editReply({
         embeds: [embed],
       })
     }
-    // Füge die Implementierung für den refresh-Befehl hinzu
     else if (subcommand === "refresh") {
-      // Only admins can refresh the invite cache
       if (!hasAdminPerms) {
         return interaction.reply({
           content: "You don't have permission to use this command. You need the 'Manage Server' permission.",
           ephemeral: true,
         })
       }
-
       await interaction.deferReply()
-
       try {
         await inviteTracker.refreshInvitesCache(client)
         return interaction.editReply({

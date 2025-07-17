@@ -32,7 +32,8 @@ module.exports = {
     }
     welcomeConfig.enabled = enabled
     try {
-      const configContent = `module.exports = ${JSON.stringify(welcomeConfig, null, 2)}`
+      let configContent = fs.readFileSync(configPath, "utf8")
+      configContent = configContent.replace(/enabled:\s*(true|false)/, `enabled: ${enabled}`)
       await fs.promises.writeFile(configPath, configContent)
       delete require.cache[require.resolve("../../config/welcome.js")]
       return interaction.reply({

@@ -66,123 +66,185 @@ module.exports = {
         console.error("Error during scheduled invite cache refresh:", error)
       }
     }, this.config.cacheRefreshInterval)
-    client.on("guildCreate", async (guild) => {
-      try {
-        console.log(`Bot joined new guild: ${guild.name} (${guild.id}). Fetching invites...`)
-        await this.fetchGuildInvites(guild)
-      } catch (error) {
-        console.error(`Error fetching invites for new guild ${guild.id}:`, error)
-      }
-    })
-    client.on("inviteCreate", (invite) => {
-      if (this.config.debug) console.log(`New invite created: ${invite.code}`)
-      if (!this.guildInvitesCache.has(invite.guild.id)) {
-        this.guildInvitesCache.set(invite.guild.id, new Collection())
-      }
-      this.guildInvitesCache.get(invite.guild.id).set(invite.code, invite)
-      if (!this.invites.has(invite.guild.id)) {
-        this.invites.set(invite.guild.id, new Collection())
-      }
-      this.invites.get(invite.guild.id).set(invite.code, {
-        code: invite.code,
-        uses: invite.uses,
-        maxUses: invite.maxUses,
-        creator: invite.inviter
-          ? {
-              id: invite.inviter.id,
-              tag: invite.inviter.tag,
-            }
-          : null,
-        channel: {
-          id: invite.channel.id,
-          name: invite.channel.name,
-        },
-        createdAt: invite.createdAt,
-        expiresAt: invite.expiresAt,
-        activeMembers: [], 
-        leftMembers: [],
+  },
+  /**
+   * @param {GuildMember} member
+   * @param {Client} client
+   */
+  async trackMemberJoin(member, client) {
+    if (!this.trackingChannelId) return
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 2500))
+      const newInvites = await member.guild.invites.fetch().catch((err) => {
+        console.error(`Error fetching invites for guild ${member.guild.id}:`, err)
+        return new Collection()
       })
-      this.saveData()
-    })
-    client.on("inviteDelete", (invite) => {
-      if (this.config.debug) console.log(`Invite deleted: ${invite.code}`)
-
-      if (this.guildInvitesCache.has(invite.guild.id)) {
-        this.guildInvitesCache.get(invite.guild.id).delete(invite.code)
+      const cachedInvites = this.guildInvitesCache.get(member.guild.id) || new Collection()
+      let usedInvite = null
+      let usedInviteCode = null
+      if (this.config.debug) {
+        console.log(`Member joined: ${member.user.tag}`)
+        console.log(`Cached invites count: ${cachedInvites.size}`)
+        console.log(`New invites count: ${newInvites.size}`)
+        console.log(
+          "Cached invites:",
+          [...cachedInvites.values()].map((i) => `${i.code}: ${i.uses} uses`),
+        )
+        console.log(
+          "New invites:",
+          [...newInvites.values()].map((i) => `${i.code}: ${i.uses} uses`),
+        )
       }
-      if (this.invites.has(invite.guild.id)) {
-        this.invites.get(invite.guild.id).delete(invite.code)
-        this.saveData()
-      }
-    })
-    client.on("guildMemberAdd", async (member) => {
-      if (!this.trackingChannelId) return
-      try {
-        await new Promise((resolve) => setTimeout(resolve, 2500))
-        const newInvites = await member.guild.invites.fetch().catch((err) => {
-          console.error(`Error fetching invites for guild ${member.guild.id}:`, err)
-          return new Collection()
-        })
-        const cachedInvites = this.guildInvitesCache.get(member.guild.id) || new Collection()
-        let usedInvite = null
-        let usedInviteCode = null
-        if (this.config.debug) {
-          console.log(`Member joined: ${member.user.tag}`)
-          console.log(`Cached invites count: ${cachedInvites.size}`)
-          console.log(`New invites count: ${newInvites.size}`)
-          console.log(
-            "Cached invites:",
-            [...cachedInvites.values()].map((i) => `${i.code}: ${i.uses} uses`),
-          )
-          console.log(
-            "New invites:",
-            [...newInvites.values()].map((i) => `${i.code}: ${i.uses} uses`),
-          )
+      newInvites.forEach((invite) => {
+        const cachedInvite = cachedInvites.get(invite.code)
+        if (cachedInvite && invite.uses > cachedInvite.uses) {
+          usedInvite = invite
+          usedInviteCode = invite.code
+          if (this.config.debug) {
+            console.log(`Found used invite: ${invite.code} (${cachedInvite.uses} -> ${invite.uses})`)
+          }
         }
+      })
+      if (!usedInvite) {
         newInvites.forEach((invite) => {
-          const cachedInvite = cachedInvites.get(invite.code)
-          if (cachedInvite && invite.uses > cachedInvite.uses) {
+          if (!cachedInvites.has(invite.code) && invite.uses > 0) {
             usedInvite = invite
             usedInviteCode = invite.code
             if (this.config.debug) {
-              console.log(`Found used invite: ${invite.code} (${cachedInvite.uses} -> ${invite.uses})`)
+              console.log(`Found new invite with uses: ${invite.code} (${invite.uses} uses)`)
             }
           }
         })
-        if (!usedInvite) {
-          newInvites.forEach((invite) => {
-            if (!cachedInvites.has(invite.code) && invite.uses > 0) {
-              usedInvite = invite
-              usedInviteCode = invite.code
-              if (this.config.debug) {
-                console.log(`Found new invite with uses: ${invite.code} (${invite.uses} uses)`)
+      }
+      if (!usedInvite) {
+        newInvites.forEach((invite) => {
+          if (invite.uses > 0) {
+            usedInvite = invite
+            usedInviteCode = invite.code
+            if (this.config.debug) {
+              console.log(`Found any invite with uses: ${invite.code} (${invite.uses} uses)`)
+            }
+          }
+        })
+      }
+      this.guildInvitesCache.set(member.guild.id, new Collection(newInvites.map((invite) => [invite.code, invite])))
+      const channel = await client.channels.fetch(this.trackingChannelId).catch(() => null)
+      if (!channel) return
+      if (!usedInvite) {
+        const embed = new EmbedBuilder()
+          .setColor(this.config.embedColors.join)
+          .setTitle(this.config.embedTitles.join)
+          .setDescription(
+            `**Member**\n<@${member.user.id}> ${member.user.tag} (${member.user.id})\n` +
+              `Joined at: ${new Date().toLocaleString()}\n\n` +
+              `**Invite**\nInvite code: ${this.config.messages.unknownInvite}\n` +
+              `Invited by: ${this.config.messages.unknownInviter}`,
+          )
+        if (this.config.embed.showTimestamp) {
+          embed.setTimestamp()
+        }
+        if (this.config.embed.footer) {
+          embed.setFooter({
+            text: this.config.embed.footer,
+            iconURL: this.config.embed.footerIconUrl,
+          })
+        }
+        await channel.send({ embeds: [embed] })
+        return
+      }
+      if (!this.invites.has(member.guild.id)) {
+        this.invites.set(member.guild.id, new Collection())
+      }
+      let inviteData = this.invites.get(member.guild.id).get(usedInvite.code)
+      if (!inviteData) {
+        inviteData = {
+          code: usedInvite.code,
+          uses: usedInvite.uses,
+          maxUses: usedInvite.maxUses,
+          creator: usedInvite.inviter
+            ? {
+                id: usedInvite.inviter.id,
+                tag: usedInvite.inviter.tag,
               }
+            : null,
+          channel: {
+            id: usedInvite.channel.id,
+            name: usedInvite.channel.name,
+          },
+          createdAt: usedInvite.createdAt,
+          expiresAt: usedInvite.expiresAt,
+          activeMembers: [],
+          leftMembers: [],
+        }
+      }
+      if (!inviteData.activeMembers) {
+        inviteData.activeMembers = []
+      }
+      if (!inviteData.leftMembers) {
+        inviteData.leftMembers = []
+      }
+      inviteData.activeMembers.push({
+        id: member.user.id,
+        tag: member.user.tag,
+        joinedAt: Date.now(),
+      })
+      inviteData.uses = usedInvite.uses
+      this.invites.get(member.guild.id).set(usedInvite.code, inviteData)
+      this.memberJoinData.set(`${member.guild.id}-${member.user.id}`, {
+        inviteCode: usedInvite.code,
+        inviterId: usedInvite.inviter ? usedInvite.inviter.id : null,
+        joinedAt: Date.now(),
+      })
+      this.saveData()
+      let activeInvitesCount = 0
+      let totalUses = 0
+      const activeCount = inviteData.activeMembers ? inviteData.activeMembers.length : 0
+      const leftCount = inviteData.leftMembers ? inviteData.leftMembers.length : 0
+      if (usedInvite.inviter) {
+        const guildInvites = this.invites.get(member.guild.id)
+        if (guildInvites) {
+          guildInvites.forEach((invite) => {
+            if (invite.creator && invite.creator.id === usedInvite.inviter.id) {
+              activeInvitesCount++
+              totalUses += invite.uses
             }
           })
         }
-        if (!usedInvite) {
-          newInvites.forEach((invite) => {
-            if (invite.uses > 0) {
-              usedInvite = invite
-              usedInviteCode = invite.code
-              if (this.config.debug) {
-                console.log(`Found any invite with uses: ${invite.code} (${invite.uses} uses)`)
-              }
-            }
-          })
-        }
-        this.guildInvitesCache.set(member.guild.id, new Collection(newInvites.map((invite) => [invite.code, invite])))
+      }
+      const embed = new EmbedBuilder()
+        .setColor(this.config.embedColors.join)
+        .setTitle(this.config.embedTitles.join)
+        .setDescription(
+          `**Member**\n<@${member.user.id}> ${member.user.tag} (${member.user.id})\n` +
+            `Joined at: ${new Date().toLocaleString()}\n\n` +
+            `**Invite**\nInvite code: ${usedInvite.code}\n` +
+            `Channel: <#${usedInvite.channel.id}> ${usedInvite.channel.name}\n` +
+            `Created at: <t:${Math.floor(usedInvite.createdTimestamp / 1000)}:F>\n` +
+            `Invited by: ${usedInvite.inviter ? `<@${usedInvite.inviter.id}> (${activeCount}/${usedInvite.uses} active invites)` : this.config.messages.unknownInviter}\n` +
+            `Uses: ${usedInvite.uses}`,
+        )
+      if (this.config.embed.showTimestamp) {
+        embed.setTimestamp()
+      }
+      if (this.config.embed.footer) {
+        embed.setFooter({
+          text: this.config.embed.footer,
+          iconURL: this.config.embed.footerIconUrl,
+        })
+      }
+      await channel.send({ embeds: [embed] })
+    } catch (error) {
+      console.error(`Error tracking invite for new member in guild ${member.guild.id}:`, error)
+      try {
         const channel = await client.channels.fetch(this.trackingChannelId).catch(() => null)
-        if (!channel) return
-        if (!usedInvite) {
+        if (channel) {
           const embed = new EmbedBuilder()
             .setColor(this.config.embedColors.join)
             .setTitle(this.config.embedTitles.join)
             .setDescription(
               `**Member**\n<@${member.user.id}> ${member.user.tag} (${member.user.id})\n` +
                 `Joined at: ${new Date().toLocaleString()}\n\n` +
-                `**Invite**\nInvite code: ${this.config.messages.unknownInvite}\n` +
-                `Invited by: ${this.config.messages.unknownInviter}`,
+                `**Invite**\nInvite code: Error retrieving\nInvited by: ${this.config.messages.unknownInviter}`,
             )
           if (this.config.embed.showTimestamp) {
             embed.setTimestamp()
@@ -194,178 +256,11 @@ module.exports = {
             })
           }
           await channel.send({ embeds: [embed] })
-          return
         }
-        if (!this.invites.has(member.guild.id)) {
-          this.invites.set(member.guild.id, new Collection())
-        }
-        let inviteData = this.invites.get(member.guild.id).get(usedInvite.code)
-        if (!inviteData) {
-          inviteData = {
-            code: usedInvite.code,
-            uses: usedInvite.uses,
-            maxUses: usedInvite.maxUses,
-            creator: usedInvite.inviter
-              ? {
-                  id: usedInvite.inviter.id,
-                  tag: usedInvite.inviter.tag,
-                }
-              : null,
-            channel: {
-              id: usedInvite.channel.id,
-              name: usedInvite.channel.name,
-            },
-            createdAt: usedInvite.createdAt,
-            expiresAt: usedInvite.expiresAt,
-            activeMembers: [],
-            leftMembers: [],
-          }
-        }
-        if (!inviteData.activeMembers) {
-          inviteData.activeMembers = []
-        }
-        if (!inviteData.leftMembers) {
-          inviteData.leftMembers = []
-        }
-        inviteData.activeMembers.push({
-          id: member.user.id,
-          tag: member.user.tag,
-          joinedAt: Date.now(),
-        })
-        inviteData.uses = usedInvite.uses
-        this.invites.get(member.guild.id).set(usedInvite.code, inviteData)
-        this.memberJoinData.set(`${member.guild.id}-${member.user.id}`, {
-          inviteCode: usedInvite.code,
-          inviterId: usedInvite.inviter ? usedInvite.inviter.id : null,
-          joinedAt: Date.now(),
-        })
-        this.saveData()
-        let activeInvitesCount = 0
-        let totalUses = 0
-        const activeCount = inviteData.activeMembers ? inviteData.activeMembers.length : 0
-        const leftCount = inviteData.leftMembers ? inviteData.leftMembers.length : 0
-        if (usedInvite.inviter) {
-          const guildInvites = this.invites.get(member.guild.id)
-          if (guildInvites) {
-            guildInvites.forEach((invite) => {
-              if (invite.creator && invite.creator.id === usedInvite.inviter.id) {
-                activeInvitesCount++
-                totalUses += invite.uses
-              }
-            })
-          }
-        }
-        const embed = new EmbedBuilder()
-          .setColor(this.config.embedColors.join)
-          .setTitle(this.config.embedTitles.join)
-          .setDescription(
-            `**Member**\n<@${member.user.id}> ${member.user.tag} (${member.user.id})\n` +
-              `Joined at: ${new Date().toLocaleString()}\n\n` +
-              `**Invite**\nInvite code: ${usedInvite.code}\n` +
-              `Channel: <#${usedInvite.channel.id}> ${usedInvite.channel.name}\n` +
-              `Created at: <t:${Math.floor(usedInvite.createdTimestamp / 1000)}:F>\n` +
-              `Invited by: ${usedInvite.inviter ? `<@${usedInvite.inviter.id}> (${activeCount}/${usedInvite.uses} active invites)` : this.config.messages.unknownInviter}\n` +
-              `Uses: ${usedInvite.uses}`,
-          )
-        if (this.config.embed.showTimestamp) {
-          embed.setTimestamp()
-        }
-        if (this.config.embed.footer) {
-          embed.setFooter({
-            text: this.config.embed.footer,
-            iconURL: this.config.embed.footerIconUrl,
-          })
-        }
-        await channel.send({ embeds: [embed] })
-      } catch (error) {
-        console.error(`Error tracking invite for new member in guild ${member.guild.id}:`, error)
-        try {
-          const channel = await client.channels.fetch(this.trackingChannelId).catch(() => null)
-          if (channel) {
-            const embed = new EmbedBuilder()
-              .setColor(this.config.embedColors.join)
-              .setTitle(this.config.embedTitles.join)
-              .setDescription(
-                `**Member**\n<@${member.user.id}> ${member.user.tag} (${member.user.id})\n` +
-                  `Joined at: ${new Date().toLocaleString()}\n\n` +
-                  `**Invite**\nInvite code: Error retrieving\nInvited by: ${this.config.messages.unknownInviter}`,
-              )
-            if (this.config.embed.showTimestamp) {
-              embed.setTimestamp()
-            }
-            if (this.config.embed.footer) {
-              embed.setFooter({
-                text: this.config.embed.footer,
-                iconURL: this.config.embed.footerIconUrl,
-              })
-            }
-            await channel.send({ embeds: [embed] })
-          }
-        } catch (err) {
-          console.error("Error sending fallback join message:", err)
-        }
+      } catch (err) {
+        console.error("Error sending fallback join message:", err)
       }
-    })
-    client.on("guildMemberRemove", async (member) => {
-      if (!this.trackingChannelId) return
-      try {
-        const memberData = this.memberJoinData.get(`${member.guild.id}-${member.user.id}`)
-        let inviteInfo = this.config.messages.normalInvite
-        let inviteCode = null
-        let inviterId = null
-        if (memberData) {
-          inviteCode = memberData.inviteCode
-          inviterId = memberData.inviterId
-          if (this.invites.has(member.guild.id)) {
-            const guildInvites = this.invites.get(member.guild.id)
-            if (guildInvites.has(inviteCode)) {
-              const inviteData = guildInvites.get(inviteCode)
-              if (inviteData.activeMembers) {
-                const index = inviteData.activeMembers.findIndex((m) => m.id === member.user.id)
-                if (index !== -1) {
-                  const memberInfo = inviteData.activeMembers.splice(index, 1)[0]
-                  if (!inviteData.leftMembers) {
-                    inviteData.leftMembers = []
-                  }
-                  inviteData.leftMembers.push({
-                    id: memberInfo.id,
-                    tag: memberInfo.tag,
-                    joinedAt: memberInfo.joinedAt,
-                    leftAt: Date.now(),
-                  })
-                  guildInvites.set(inviteCode, inviteData)
-                  this.saveData()
-                }
-              }
-            }
-          }
-          inviteInfo = `Invite Code: \`${inviteCode}\`\nInvited by: ${inviterId ? `<@${inviterId}>` : "Unknown"}`
-        }
-        const channel = await client.channels.fetch(this.trackingChannelId).catch(() => null)
-        if (!channel) return
-        const embed = new EmbedBuilder()
-          .setColor(this.config.embedColors.leave)
-          .setTitle(this.config.embedTitles.leave)
-          .setDescription(
-            `**Member**\n<@${member.user.id}> ${member.user.tag} (${member.user.id})\n` +
-              `Joined at: <t:${Math.floor(member.joinedTimestamp / 1000)}:F>\n` +
-              `Left at: <t:${Math.floor(Date.now() / 1000)}:F>\n\n` +
-              `**Invite Information**\n${inviteInfo}`,
-          )
-        if (this.config.embed.showTimestamp) {
-          embed.setTimestamp()
-        }
-        if (this.config.embed.footer) {
-          embed.setFooter({
-            text: this.config.embed.footer,
-            iconURL: this.config.embed.footerIconUrl,
-          })
-        }
-        await channel.send({ embeds: [embed] })
-      } catch (error) {
-        console.error("Error sending member leave message:", error)
-      }
-    })
+    }
   },
   /**
    * @param {Guild} guild

@@ -1,50 +1,26 @@
-const fs = require("fs")
-const path = require("path")
-const { PermissionFlagsBits, EmbedBuilder } = require("discord.js")
-const CONFIG_PATH = path.resolve(__dirname, "../config/autoReact.js")
+const FileStorage = require("../utils/fileStorage")
 let autoReactConfig = { channels: {}, users: {}, keywords: {} }
-function loadConfig() {
+const DATA_FILENAME = "autoReact"
+async function loadConfig() {
   try {
-    delete require.cache[require.resolve(CONFIG_PATH)]
-    const loadedConfig = require(CONFIG_PATH)
+    const loadedConfig = await FileStorage.loadData(DATA_FILENAME, { channels: {}, users: {}, keywords: {} })
     autoReactConfig = {
       channels: loadedConfig.channels || {},
       users: loadedConfig.users || {},
-      keywords: loadedConfig.keywords || {},
+      keywords: loadedConfig.keywords || {}
     }
-    console.log("Auto-react config loaded successfully")
+    console.log("AutoReact config loaded:", autoReactConfig)
   } catch (error) {
-    console.error("Error loading autoReact config:", error)
-    if (!fs.existsSync(CONFIG_PATH)) {
-      saveConfig()
-    }
+    console.error("Error loading AutoReact config:", error)
+    autoReactConfig = { channels: {}, users: {}, keywords: {} }
   }
 }
-function saveConfig() {
+async function saveConfig() {
   try {
-    const configDir = path.dirname(CONFIG_PATH)
-    if (!fs.existsSync(configDir)) {
-      fs.mkdirSync(configDir, { recursive: true })
-    }
-    const configContent = `module.exports = {
-  // Reactions for specific channels
-  channels: ${JSON.stringify(autoReactConfig.channels, null, 2).replace(/"([^"]+)":/g, "$1:")},
-  // Reactions for specific users
-  users: ${JSON.stringify(autoReactConfig.users, null, 2).replace(/"([^"]+)":/g, "$1:")},
-  // Keyword-based reactions
-  keywords: ${JSON.stringify(autoReactConfig.keywords, null, 2).replace(/"([^"]+)":/g, "$1:")}
-}
-`
-    fs.writeFileSync(CONFIG_PATH, configContent, "utf8")
-    console.log(`Auto-react config saved to ${CONFIG_PATH}`)
-    if (!fs.existsSync(CONFIG_PATH)) {
-      console.error(`Failed to save config: File not found after write attempt`)
-      return false
-    }
-    return true
+    await FileStorage.saveData(DATA_FILENAME, autoReactConfig)
+    console.log("AutoReact config saved")
   } catch (error) {
-    console.error("Error saving autoReact config:", error)
-    return false
+    console.error("Error saving AutoReact config:", error)
   }
 }
 loadConfig()
@@ -53,34 +29,39 @@ module.exports = {
   /**
    * @param {import('discord.js').Client} client
    */
-  init(client) {
+  async init(client) {
     console.log("Auto React module initialized")
-    loadConfig()
+    await loadConfig()
   },
   /**
    * @param {import('discord.js').Message} message
    * @param {import('discord.js').Client} client
+   * @param {boolean} allowBotMessages
    */
-  async handleMessage(message, client) {
-    if (message.author.bot) return
+  async handleMessage(message, client, allowBotMessages = false) {
+    if (message.author.bot && !allowBotMessages) return
     try {
       const channelReactions = autoReactConfig.channels[message.channel.id]
-      if (channelReactions) {
+      if (channelReactions && channelReactions.length > 0) {
         for (const emoji of channelReactions) {
           await this.reactWithEmoji(message, emoji, client)
         }
       }
-      const userReactions = autoReactConfig.users[message.author.id]
-      if (userReactions) {
-        for (const emoji of userReactions) {
-          await this.reactWithEmoji(message, emoji, client)
-        }
-      }
-      const content = message.content.toLowerCase()
-      for (const [keyword, emojis] of Object.entries(autoReactConfig.keywords)) {
-        if (content.includes(keyword.toLowerCase())) {
-          for (const emoji of emojis) {
+      if (!message.author.bot || allowBotMessages) {
+        const userReactions = autoReactConfig.users[message.author.id]
+        if (userReactions && userReactions.length > 0) {
+          for (const emoji of userReactions) {
             await this.reactWithEmoji(message, emoji, client)
+          }
+        }
+        if (message.content) {
+          const content = message.content.toLowerCase()
+          for (const [keyword, emojis] of Object.entries(autoReactConfig.keywords)) {
+            if (content.includes(keyword.toLowerCase())) {
+              for (const emoji of emojis) {
+                await this.reactWithEmoji(message, emoji, client)
+              }
+            }
           }
         }
       }
@@ -127,7 +108,20 @@ module.exports = {
           }
         }
       } else {
-        await message.react(emoji)
+        try {
+          await message.react(emoji)
+        } catch (error) {
+          if (error.code === 10014) {
+            const guildEmoji = message.guild.emojis.cache.find(e => e.name === emoji)
+            if (guildEmoji) {
+              await message.react(guildEmoji)
+            } else {
+              console.error(`Emoji ${emoji} not found in server`)
+            }
+          } else {
+            throw error
+          }
+        }
       }
     } catch (error) {
       console.error(`Error reacting with emoji ${emoji}:`, error)
@@ -138,14 +132,17 @@ module.exports = {
    * @param {string} emoji
    * @returns {boolean}
    */
-  addChannelReaction(channelId, emoji) {
+  async addChannelReaction(channelId, emoji) {
     try {
+      if (!autoReactConfig || !autoReactConfig.channels) {
+        await loadConfig()
+      }
       if (!autoReactConfig.channels[channelId]) {
         autoReactConfig.channels[channelId] = []
       }
       if (!autoReactConfig.channels[channelId].includes(emoji)) {
         autoReactConfig.channels[channelId].push(emoji)
-        saveConfig()
+        await saveConfig()
       }
       return true
     } catch (error) {
@@ -158,8 +155,11 @@ module.exports = {
    * @param {string} emoji
    * @returns {boolean}
    */
-  removeChannelReaction(channelId, emoji) {
+  async removeChannelReaction(channelId, emoji) {
     try {
+      if (!autoReactConfig || !autoReactConfig.channels) {
+        await loadConfig()
+      }
       if (autoReactConfig.channels[channelId]) {
         const index = autoReactConfig.channels[channelId].indexOf(emoji)
         if (index !== -1) {
@@ -167,7 +167,7 @@ module.exports = {
           if (autoReactConfig.channels[channelId].length === 0) {
             delete autoReactConfig.channels[channelId]
           }
-          saveConfig()
+          await saveConfig()
           return true
         }
       }
@@ -182,14 +182,17 @@ module.exports = {
    * @param {string} emoji
    * @returns {boolean}
    */
-  addUserReaction(userId, emoji) {
+  async addUserReaction(userId, emoji) {
     try {
+      if (!autoReactConfig || !autoReactConfig.users) {
+        await loadConfig()
+      }
       if (!autoReactConfig.users[userId]) {
         autoReactConfig.users[userId] = []
       }
       if (!autoReactConfig.users[userId].includes(emoji)) {
         autoReactConfig.users[userId].push(emoji)
-        saveConfig()
+        await saveConfig()
       }
       return true
     } catch (error) {
@@ -202,8 +205,11 @@ module.exports = {
    * @param {string} emoji
    * @returns {boolean}
    */
-  removeUserReaction(userId, emoji) {
+  async removeUserReaction(userId, emoji) {
     try {
+      if (!autoReactConfig || !autoReactConfig.users) {
+        await loadConfig()
+      }
       if (autoReactConfig.users[userId]) {
         const index = autoReactConfig.users[userId].indexOf(emoji)
         if (index !== -1) {
@@ -211,7 +217,7 @@ module.exports = {
           if (autoReactConfig.users[userId].length === 0) {
             delete autoReactConfig.users[userId]
           }
-          saveConfig()
+          await saveConfig()
           return true
         }
       }
@@ -226,14 +232,17 @@ module.exports = {
    * @param {string} emoji
    * @returns {boolean}
    */
-  addKeywordReaction(keyword, emoji) {
+  async addKeywordReaction(keyword, emoji) {
     try {
+      if (!autoReactConfig || !autoReactConfig.keywords) {
+        await loadConfig()
+      }
       if (!autoReactConfig.keywords[keyword]) {
         autoReactConfig.keywords[keyword] = []
       }
       if (!autoReactConfig.keywords[keyword].includes(emoji)) {
         autoReactConfig.keywords[keyword].push(emoji)
-        saveConfig()
+        await saveConfig()
       }
       return true
     } catch (error) {
@@ -246,8 +255,11 @@ module.exports = {
    * @param {string} emoji
    * @returns {boolean}
    */
-  removeKeywordReaction(keyword, emoji) {
+  async removeKeywordReaction(keyword, emoji) {
     try {
+      if (!autoReactConfig || !autoReactConfig.keywords) {
+        await loadConfig()
+      }
       if (autoReactConfig.keywords[keyword]) {
         const index = autoReactConfig.keywords[keyword].indexOf(emoji)
         if (index !== -1) {
@@ -255,7 +267,7 @@ module.exports = {
           if (autoReactConfig.keywords[keyword].length === 0) {
             delete autoReactConfig.keywords[keyword]
           }
-          saveConfig()
+          await saveConfig()
           return true
         }
       }
@@ -290,9 +302,13 @@ module.exports = {
    * @returns {Object}
    */
   getConfig() {
+    if (!autoReactConfig || !autoReactConfig.channels || !autoReactConfig.users || !autoReactConfig.keywords) {
+      loadConfig().catch(console.error)
+      return { channels: {}, users: {}, keywords: {} }
+    }
     return autoReactConfig
   },
-  reloadConfig() {
-    loadConfig()
+  async reloadConfig() {
+    await loadConfig()
   },
 }

@@ -32,13 +32,13 @@ module.exports = {
             if (systemChannel) {
               await systemChannel.send({
                 content:
-                  "⚠️ **Warnung:** Der Rating-Kanal ist nicht gesetzt! Bitte verwende `/ratingset`, um einen Kanal festzulegen.",
+                  "⚠️ **Warning:** The rating channel is not set! Please use `/ratingset` to set a channel.",
               })
             } else {
               await owner
                 .send({
                   content:
-                    "⚠️ **Warnung:** Der Rating-Kanal für deinen Server ist nicht gesetzt! Bitte verwende `/ratingset`, um einen Kanal festzulegen.",
+                    "⚠️ **Warning:** The rating channel for your server is not set! Please use `/ratingset` to set a channel.",
                 })
                 .catch(() => console.log("Could not DM server owner"))
             }
@@ -62,21 +62,6 @@ module.exports = {
       if (!channel) {
         console.error(`Rating channel ${starboardConfig.channelId} not found`)
         return
-      }
-      const savedEmbedData = await FileStorage.loadData("rating_embed_id", { id: null })
-      if (savedEmbedData.id) {
-        console.log(`Found saved rating embed ID: ${savedEmbedData.id}, attempting to delete it`)
-        try {
-          const existingMessage = await channel.messages.fetch(savedEmbedData.id).catch(() => null)
-          if (existingMessage) {
-            await existingMessage.delete().catch((err) => console.error("Error deleting existing embed:", err))
-            console.log("Successfully deleted existing rating embed")
-          } else {
-            console.log("Saved rating embed not found in channel, will create a new one")
-          }
-        } catch (error) {
-          console.error("Error deleting saved rating embed:", error)
-        }
       }
       await this.createRatingEmbed(client)
     } catch (error) {
@@ -128,16 +113,19 @@ module.exports = {
         console.error(`Rating channel ${starboardConfig.channelId} not found`)
         return
       }
-      const messages = await channel.messages.fetch({ limit: 50 })
-      const existingEmbed = messages.find(
-        (msg) =>
-          msg.author.id === client.user.id &&
-          msg.embeds.length > 0 &&
-          msg.embeds[0].title === starboardConfig.embed.title,
-      )
-      if (existingEmbed) {
-        console.log("Found existing rating embed, deleting it...")
-        await existingEmbed.delete().catch((err) => console.error("Error deleting existing embed:", err))
+      let message = null
+      const savedEmbedData = await FileStorage.loadData("rating_embed_id", { id: null })
+      if (savedEmbedData.id) {
+        message = await channel.messages.fetch(savedEmbedData.id).catch(() => null)
+      }
+      if (!message) {
+        const messages = await channel.messages.fetch({ limit: 50 })
+        message = messages.find(
+          (msg) =>
+            msg.author.id === client.user.id &&
+            msg.embeds.length > 0 &&
+            msg.embeds[0].title === starboardConfig.embed.title,
+        )
       }
       const embed = new EmbedBuilder()
         .setTitle(starboardConfig.embed.title)
@@ -162,29 +150,19 @@ module.exports = {
         new ButtonBuilder().setCustomId("rating_4").setLabel("⭐⭐⭐⭐").setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId("rating_5").setLabel("⭐⭐⭐⭐⭐").setStyle(ButtonStyle.Secondary),
       )
-      const isSameChannel = starboardConfig.channelId === starboardConfig.ratingChannelId
-      const shouldStickToBottom = isSameChannel && starboardConfig.stickyEmbed
-      if (shouldStickToBottom) {
-        const allMessages = await channel.messages.fetch()
-        if (existingEmbed) {
-          const messagesToDelete = allMessages.filter(
-            (msg) =>
-              msg.createdTimestamp > existingEmbed.createdTimestamp &&
-              msg.deletable &&
-              msg.author.id === client.user.id,
-          )
-          for (const [id, message] of messagesToDelete) {
-            await message.delete().catch((err) => console.error("Error deleting message:", err))
-          }
-        }
+      if (message) {
+        // Nachricht aktualisieren
+        await message.edit({ embeds: [embed], components: [ratingRow] })
+        client.ratingEmbedId = message.id
+        await FileStorage.saveData("rating_embed_id", { id: message.id })
+        console.log(`Rating embed updated with ID: ${message.id}`)
+      } else {
+        // Neue Nachricht senden
+        message = await channel.send({ embeds: [embed], components: [ratingRow] })
+        client.ratingEmbedId = message.id
+        await FileStorage.saveData("rating_embed_id", { id: message.id })
+        console.log(`Rating embed created with ID: ${message.id}`)
       }
-      const message = await channel.send({
-        embeds: [embed],
-        components: [ratingRow],
-      })
-      console.log(`Rating embed created with ID: ${message.id}`)
-      client.ratingEmbedId = message.id
-      await FileStorage.saveData("rating_embed_id", { id: message.id })
       let ratingsData = client.ratings.get("server_rating")
       if (!ratingsData) {
         ratingsData = {
@@ -422,11 +400,11 @@ module.exports = {
       console.log(`Showing rating comment modal for rating: ${rating}`)
       const modal = new ModalBuilder()
         .setCustomId(`rating_modal_with_rating_${rating}`)
-        .setTitle(`Bewertung mit ${rating} ${rating === 1 ? "Stern" : "Sternen"}`)
+        .setTitle(`Rating with ${rating} ${rating === 1 ? "star" : "stars"}`)
       const commentInput = new TextInputBuilder()
         .setCustomId("comment_text")
-        .setLabel("Dein Kommentar (optional)")
-        .setPlaceholder("Schreibe deinen Kommentar hier oder lasse das Feld leer...")
+        .setLabel("Your comment (optional)")
+        .setPlaceholder("Write your comment here or leave the field empty...")
         .setStyle(TextInputStyle.Paragraph)
         .setMinLength(0)
         .setMaxLength(1000)
@@ -436,7 +414,7 @@ module.exports = {
     } catch (error) {
       console.error("Error showing rating comment modal:", error)
       await interaction.reply({
-        content: "Beim Öffnen des Bewertungs-Fensters ist ein Fehler aufgetreten.",
+        content: "An error occurred while opening the rating window.",
         ephemeral: true,
       })
     }
@@ -474,14 +452,14 @@ module.exports = {
       const averageRating = ratingsData.totalRating / ratingsData.ratingCount
       await this.logRating(client, interaction.user, rating, previousRating)
       await interaction.reply({
-        content: `Danke für deine Bewertung! Du hast ${rating} ${rating === 1 ? "Stern" : "Sterne"} gegeben.`,
+        content: `Thank you for your rating! You gave ${rating} ${rating === 1 ? "star" : "stars"}.`,
         ephemeral: true,
       })
       await this.updateRatingEmbed(client, averageRating, ratingsData.ratingCount)
     } catch (error) {
       console.error("Error handling rating:", error)
       await interaction.reply({
-        content: "Bei der Bewertung ist ein Fehler aufgetreten.",
+        content: "An error occurred while processing your rating.",
         ephemeral: true,
       })
     }
@@ -492,11 +470,11 @@ module.exports = {
   async showCommentModal(interaction) {
     try {
       console.log("Showing comment modal")
-      const modal = new ModalBuilder().setCustomId("rating_modal_comment").setTitle("Kommentar hinzufügen")
+      const modal = new ModalBuilder().setCustomId("rating_modal_comment").setTitle("Add Comment")
       const commentInput = new TextInputBuilder()
         .setCustomId("comment_text")
-        .setLabel("Dein Kommentar")
-        .setPlaceholder("Schreibe deinen Kommentar hier...")
+        .setLabel("Your comment")
+        .setPlaceholder("Write your comment here...")
         .setStyle(TextInputStyle.Paragraph)
         .setMaxLength(1000)
         .setRequired(true)
@@ -505,7 +483,7 @@ module.exports = {
     } catch (error) {
       console.error("Error showing comment modal:", error)
       await interaction.reply({
-        content: "Beim Öffnen des Kommentar-Fensters ist ein Fehler aufgetreten.",
+        content: "An error occurred while opening the comment window.",
         ephemeral: true,
       })
     }
@@ -542,13 +520,13 @@ module.exports = {
         await FileStorage.saveData("server_ratings", ratingsData)
         await this.logComment(client, interaction.user, commentText)
         await interaction.reply({
-          content: "Danke für deinen Kommentar!",
+          content: "Thank you for your comment!",
           ephemeral: true,
         })
       } catch (error) {
         console.error("Error handling comment:", error)
         await interaction.reply({
-          content: "Beim Hinzufügen des Kommentars ist ein Fehler aufgetreten.",
+          content: "An error occurred while adding your comment.",
           ephemeral: true,
         })
       }
@@ -579,16 +557,16 @@ module.exports = {
           const remainingTime = Math.ceil((cooldownTime - timeSinceLastRating) / 1000)
           let timeDisplay
           if (remainingTime < 60) {
-            timeDisplay = `${remainingTime} Sekunden`
+            timeDisplay = `${remainingTime} seconds`
           } else if (remainingTime < 3600) {
-            timeDisplay = `${Math.ceil(remainingTime / 60)} Minuten`
+            timeDisplay = `${Math.ceil(remainingTime / 60)} minutes`
           } else if (remainingTime < 86400) {
-            timeDisplay = `${Math.ceil(remainingTime / 3600)} Stunden`
+            timeDisplay = `${Math.ceil(remainingTime / 3600)} hours`
           } else {
-            timeDisplay = `${Math.ceil(remainingTime / 86400)} Tagen`
+            timeDisplay = `${Math.ceil(remainingTime / 86400)} days`
           }
           await interaction.reply({
-            content: `Du musst noch ${timeDisplay} warten, bevor du erneut bewerten kannst.`,
+            content: `You must wait ${timeDisplay} before you can rate again.`,
             ephemeral: true,
           })
           return
@@ -687,27 +665,49 @@ module.exports = {
         console.error(`Rating channel ${starboardConfig.channelId} not found`)
         return
       }
-      const messageId = client.ratingEmbedId || (await FileStorage.loadData("rating_embed_id", { id: null })).id
+      let messageId = client.ratingEmbedId
       if (!messageId) {
-        console.error("Rating embed message ID not found")
+        const savedData = await FileStorage.loadData("rating_embed_id", { id: null })
+        messageId = savedData.id
+      }
+      if (!messageId) {
+        console.log("No rating embed message ID found, creating new embed...")
+        await this.createRatingEmbed(client)
         return
       }
-      const message = await channel.messages.fetch(messageId).catch(() => null)
+      let message = await channel.messages.fetch(messageId).catch(() => null)
       if (!message) {
-        console.error(`Rating embed message ${messageId} not found`)
+        console.log(`Rating embed message ${messageId} not found, creating new embed...`)
+        await FileStorage.saveData("rating_embed_id", { id: null })
+        client.ratingEmbedId = null
+        await this.createRatingEmbed(client)
+        return
+      }
+      if (message.author.id !== client.user.id || !message.embeds || message.embeds.length === 0) {
+        console.log("Message is not a valid rating embed, creating new one...")
+        await this.createRatingEmbed(client)
         return
       }
       const embed = EmbedBuilder.from(message.embeds[0])
-      const statsText = `Durchschnittliche Bewertung: ${averageRating.toFixed(1)} ⭐ (${ratingCount} Bewertungen)`
-      const statsFieldIndex = embed.data.fields?.findIndex((field) => field.name === "Statistik")
+      const statsText = `Average Rating: ${averageRating.toFixed(1)} ⭐ (${ratingCount} ratings)`
+      const statsFieldIndex = embed.data.fields?.findIndex((field) => field.name === "Statistics")
       if (statsFieldIndex !== undefined && statsFieldIndex >= 0) {
         embed.data.fields[statsFieldIndex].value = statsText
       } else {
-        embed.addFields({ name: "Statistik", value: statsText })
+        embed.addFields({ name: "Statistics", value: statsText })
       }
       await message.edit({ embeds: [embed] })
+      console.log(`Rating embed updated successfully with ID: ${message.id}`)
     } catch (error) {
       console.error("Error updating rating embed:", error)
+      try {
+        console.log("Attempting to recreate rating embed due to error...")
+        await FileStorage.saveData("rating_embed_id", { id: null })
+        client.ratingEmbedId = null
+        await this.createRatingEmbed(client)
+      } catch (recreateError) {
+        console.error("Error recreating rating embed:", recreateError)
+      }
     }
   },
   async logRatingWithComment(client, user, rating, comment, previousRating) {
@@ -723,25 +723,24 @@ module.exports = {
           name: user.tag,
           iconURL: user.displayAvatarURL(),
         })
-        .setTitle("Neue Bewertung")
+        .setTitle("New Rating")
         .setColor(starboardConfig.embed.color)
         .addFields({
-          name: "Bewertung des Users",
+          name: "User Rating",
           value: stars,
         })
       if (comment && comment.trim().length > 0) {
         embed.setDescription(comment)
       } else {
         embed.addFields({
-          name: "Kommentar",
-          value: "*Kein Kommentar hinterlassen*",
+          name: "Comment",
+          value: "*No comment provided*",
         })
       }
-
       if (previousRating > 0) {
         const previousStars = "⭐".repeat(previousRating)
         embed.addFields({
-          name: "Vorherige Bewertung",
+          name: "Previous Rating",
           value: previousStars,
         })
       }
@@ -795,7 +794,7 @@ module.exports = {
           name: user.tag,
           iconURL: user.displayAvatarURL(),
         })
-        .setTitle("Neuer Kommentar")
+        .setTitle("New Comment")
         .setDescription(comment)
         .setColor(starboardConfig.embed.color)
       const ratingsData = client.ratings.get("server_rating")
@@ -803,7 +802,7 @@ module.exports = {
         const userRating = ratingsData.ratings[user.id].rating
         const stars = "⭐".repeat(userRating)
         embed.addFields({
-          name: "Bewertung des Users",
+          name: "User Rating",
           value: stars,
         })
       }

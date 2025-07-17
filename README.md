@@ -9,14 +9,53 @@
 
 
 ---
-
+## Over 28 usefull commands!
 ## 🚀 About NextBot
 
 > **NextBot** is a modular, customizable Discord Bot providing advanced server management and interactive features.
 
 Currently in **Beta** 🛠️ — under active development and testing!
-## Stable v0.1.1 is aviable now! [Download here!](https://github.com/IddoxLatifi/NextBot/releases/tag/v0.1.1)
+## v0.1.2 Available now! [Download here!](https://github.com/IddoxLatifi/NextBot/releases/tag/v0.1.2)
 ## 🔄 Latest Updates & Improvements
+
+### 📜 **Guild Logging added**
+- **Event-Based Logging:** Automatically logs key server events like message deletions, edits, member joins/leaves, role updates, and more
+- **Clean Log Embeds:** Professionally styled embeds with clear context and timestamps
+- **User & Action Tracing:** Quickly trace actions to specific users for better moderation visibility
+
+### 🎯 **New Sticky Message System**
+- **Interactive Embed Builder:** Create beautiful sticky embeds with live preview
+- **Button-Based Editing:** Easy-to-use interface with modal inputs for all embed elements
+- **Auto-React Integration:** Sticky messages automatically receive configured auto-react emojis
+- **Smart Message Management:** Automatically re-sends sticky messages to keep them at the bottom
+- **Admin-Only Access:** Restricted to ADMIN_ID for security
+
+### 🤖 **Enhanced AutoReact Module**
+- **Bot Message Support:** Auto-react now works on bot messages and sticky messages
+- **Robust Emoji Support:** Handles Unicode emojis, Discord custom emojis (animated/static), and server emojis
+- **Improved Error Handling:** Better configuration management and error recovery
+- **Admin-Only Commands:** All auto-react commands restricted to ADMIN_ID
+- **Enhanced Logging:** Better debug information and error reporting
+
+### 🛡️ **Security Improvements**
+- **Admin ID Verification:** Critical commands now require ADMIN_ID authentication
+- **Permission Checks:** Enhanced security for sensitive operations
+- **Better Access Control:** Restricted access to configuration commands
+
+### 🔧 **System Enhancements**
+- **Improved Configuration Loading:** More robust data loading and error handling
+- **Better Error Recovery:** Graceful fallbacks when configuration is corrupted
+- **Enhanced Module Communication:** Better integration between sticky messages and auto-react
+
+### 📋 **Advanced Guild Logging System**
+- **Comprehensive Event Tracking:** Logs role changes, bans, kicks, mutes, channel creation/deletion, and member updates
+- **Audit Log Integration:** Automatically detects who performed actions using Discord's audit logs
+- **Detailed Log Embeds:** Rich embed format with executor information, target details, and before/after values
+- **Configurable Logging:** Set custom log channels and customize embed colors for different event types
+
+---
+
+## v0.1.1 Available now! [Download here!](https://github.com/IddoxLatifi/NextBot/releases/tag/v0.1.1)
 
 ### 🎯 **Enhanced Ticket System**
 - **Smart Transcript System:** Automatic transcript generation and DM delivery when tickets are deleted
