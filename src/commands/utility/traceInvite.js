@@ -558,7 +558,7 @@ module.exports = {
       const sortedInviters = [...inviterStats.values()].sort((a, b) => b.totalUses - a.totalUses).slice(0, 10) // Top 10
       const embed = new EmbedBuilder()
         .setColor(inviteTracker.config.embedColors.info)
-        .setTitle("🏆 Invite Leaderboard")
+        .setTitle("Invite Leaderboard👑")
         .setTimestamp()
       if (sortedInviters.length === 0) {
         embed.setDescription("No invite data found.")
